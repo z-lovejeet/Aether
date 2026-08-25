@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+/* ============================================================
+   MASTERY ENGINE · Design System "Liquid Glass OS"
+   Aurora over Deep Space · dark-first (docs/06-design-system.md)
+   ============================================================ */
+
+@theme {
+  /* palette */
+  --color-base: #0a0a14;
+  --color-base-light: #f4f4fb;
+  --color-accent: #8b5cf6;
+  --color-mastery: #34d399;
+  --color-learning: #fbbf24;
+  --color-forget: #fb7185;
+
+  /* typography */
+  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* radii */
+  --radius-glass: 24px;
+
+  /* motion */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+:root {
+  /* glass material tokens (dark-first) */
+  --glass-fill: rgba(255, 255, 255, 0.06);
+  --glass-fill-modal: rgba(255, 255, 255, 0.1);
+  --glass-rim-top: rgba(255, 255, 255, 0.25);
+  --glass-blur: 24px;
+  --text-primary: rgba(255, 255, 255, 0.92);
+  --text-secondary: rgba(255, 255, 255, 0.65);
+
+  /* aurora blob hues */
+  --aurora-1: #7c3aed; /* violet */
+  --aurora-2: #2dd4bf; /* teal   */
+  --aurora-3: #f59e0b; /* amber  */
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+.display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* ---------- Liquid Glass material ---------- */
+
+.glass {
+  position: relative;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border-radius: var(--radius-glass);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+    0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+/* specular rim light caught on the top edge */
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    to bottom,
+    var(--glass-rim-top),
+    transparent 40%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ambient sheen — global light source sits top-left */
+.glass-sheen {
+  background:
+    radial-gradient(
+      120% 90% at 18% 0%,
+      rgba(255, 255, 255, 0.08),
+      transparent 55%
+    ),
+    var(--glass-fill);
+}
+
+.glass-hover {
+  transition:
+    transform 0.35s var(--ease-spring),
+    box-shadow 0.35s ease;
+}
+.glass-hover:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+    0 16px 48px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- Aurora background blobs ---------- */
+
+@keyframes aurora-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(6vw, -4vh) scale(1.08);
+  }
+  66% {
+    transform: translate(-5vw, 5vh) scale(0.94);
+  }
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(110px);
+  opacity: 0.45;
+  will-change: transform;
+  animation: aurora-drift 26s ease-in-out infinite;
+}
+
+/* ---------- Grain overlay (kills gradient banding) ---------- */
+
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- Accessibility ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob,
+  .glass-hover,
+  .glass-hover:hover {
+    animation: none;
+    transition: none;
+    transform: none;
+  }
+}
