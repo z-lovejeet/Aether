@@ -6,9 +6,10 @@ function state -> Partial[MasteryState]; side effects happen in typed tools.
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal, TypedDict
+from typing import Any, Literal
 
 from langgraph.graph.message import add_messages
+from typing_extensions import Annotated, TypedDict
 
 
 SourceType = Literal["photo", "pdf", "text", "audio", "youtube"]
@@ -51,6 +52,10 @@ class MasteryState(TypedDict, total=False):
 
     # concepts & generated assets
     conceptTree: list[dict[str, Any]]
+    conceptIdMap: dict[str, str]
+    materialId: str
+    subject: str
+    level: str
     generatedAssets: dict[str, Any]  # explainerMd, cheatSheetMd, flashcards, quizItems
 
     # personalization
