@@ -126,12 +126,10 @@ export default function LandingPage() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-slate-200/90 text-slate-600 text-[11px] font-medium shadow-sm mb-6"
+          className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white border border-slate-200/90 text-slate-600 text-xs font-medium shadow-sm mb-6"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 animate-pulse" />
-          <span className="font-mono tracking-wider uppercase text-[10px] text-slate-500">Aether Study Engine</span>
-          <span className="text-slate-300">|</span>
-          <span>v2.0</span>
+          <span className="font-mono tracking-wider uppercase text-[11px] text-slate-700 font-semibold">Aether Study Engine</span>
         </motion.div>
 
         {/* Clean, Proportionate Headline */}
