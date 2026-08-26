@@ -1,89 +1,155 @@
 @import "tailwindcss";
 
 /* ============================================================
-   MASTERY ENGINE · Design System "Liquid Glass OS"
-   Aurora over Deep Space · dark-first (docs/06-design-system.md)
+   AETHER · Human-Crafted Editorial Light Design System
+   Warm Porcelain, Sharp Obsidian Typography & Refined Indigo
    ============================================================ */
 
 @theme {
-  /* palette */
-  --color-base: #0a0a14;
-  --color-base-light: #f4f4fb;
-  --color-accent: #8b5cf6;
-  --color-mastery: #34d399;
-  --color-learning: #fbbf24;
-  --color-forget: #fb7185;
+  /* Palette */
+  --color-base: #fafbfc;
+  --color-base-surface: #ffffff;
+  --color-base-elevated: #f4f6f8;
+  
+  --color-accent: #4f46e5;
+  --color-accent-hover: #4338ca;
+  --color-accent-blue: #2563eb;
+  --color-accent-teal: #0d9488;
 
-  /* typography */
-  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --color-mastery: #059669;
+  --color-learning: #d97706;
+  --color-forget: #e11d48;
 
-  /* radii */
-  --radius-glass: 24px;
+  /* Typography */
+  --font-display: var(--font-jakarta), var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* motion */
+  /* Radii */
+  --radius-glass: 18px;
+  --radius-pill: 9999px;
+
+  /* Motion */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :root {
-  /* glass material tokens (dark-first) */
-  --glass-fill: rgba(255, 255, 255, 0.06);
-  --glass-fill-modal: rgba(255, 255, 255, 0.1);
-  --glass-rim-top: rgba(255, 255, 255, 0.25);
-  --glass-blur: 24px;
-  --text-primary: rgba(255, 255, 255, 0.92);
-  --text-secondary: rgba(255, 255, 255, 0.65);
-
-  /* aurora blob hues */
-  --aurora-1: #7c3aed; /* violet */
-  --aurora-2: #2dd4bf; /* teal   */
-  --aurora-3: #f59e0b; /* amber  */
+  --glass-fill: rgba(255, 255, 255, 0.88);
+  --glass-fill-hover: rgba(255, 255, 255, 0.96);
+  --glass-fill-modal: rgba(255, 255, 255, 0.96);
+  --glass-fill-dock: rgba(255, 255, 255, 0.88);
+  
+  --glass-border: rgba(226, 232, 240, 0.9);
+  --glass-border-hover: rgba(203, 213, 225, 1);
+  
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--color-base);
+  background: #fafbfc;
   color: var(--text-primary);
-  font-family: var(--font-body);
+  font-family: var(--font-sans);
   min-height: 100dvh;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-h1,
-h2,
-h3,
-.display {
+::selection {
+  background: #e0e7ff;
+  color: #1e1b4b;
+}
+
+h1, h2, h3, h4, .display {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.035em;
+  color: #0f172a;
+  text-wrap: balance;
 }
 
-/* ---------- Liquid Glass material ---------- */
+/* ---------- Tactile 3D Liquid Glass Card Classes ---------- */
+
+.liquid-glass {
+  position: relative;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+  border-radius: var(--radius-glass);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    0 1px 2px 0 rgba(0, 0, 0, 0.02),
+    0 8px 24px -4px rgba(15, 23, 42, 0.05);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.25s var(--ease-spring);
+}
+
+.liquid-glass:hover {
+  background: var(--glass-fill-hover);
+  border-color: var(--glass-border-hover);
+  box-shadow:
+    0 2px 4px 0 rgba(0, 0, 0, 0.02),
+    0 16px 36px -6px rgba(15, 23, 42, 0.07);
+}
 
 .glass {
   position: relative;
   background: var(--glass-fill);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
-  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
   border-radius: var(--radius-glass);
+  border: 1px solid var(--glass-border);
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
-    0 8px 32px rgba(0, 0, 0, 0.35);
+    0 1px 3px 0 rgba(0, 0, 0, 0.03),
+    0 6px 18px -4px rgba(15, 23, 42, 0.04);
 }
 
-/* specular rim light caught on the top edge */
-.glass::before {
+.glass-sheen {
+  background:
+    radial-gradient(
+      120% 90% at 20% 0%,
+      rgba(255, 255, 255, 0.7),
+      transparent 60%
+    ),
+    var(--glass-fill);
+}
+
+.glass-hover {
+  transition:
+    transform 0.25s var(--ease-spring),
+    box-shadow 0.25s ease,
+    border-color 0.2s ease;
+}
+.glass-hover:hover {
+  transform: translateY(-2px);
+  border-color: var(--glass-border-hover);
+  box-shadow:
+    0 12px 28px -6px rgba(15, 23, 42, 0.08);
+}
+
+/* Specular Rim Light */
+.specular-rim::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   padding: 1px;
   background: linear-gradient(
-    to bottom,
-    var(--glass-rim-top),
-    transparent 40%
+    135deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(226, 232, 240, 0.7) 100%
   );
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
@@ -96,71 +162,81 @@ h3,
   pointer-events: none;
 }
 
-/* ambient sheen — global light source sits top-left */
-.glass-sheen {
-  background:
-    radial-gradient(
-      120% 90% at 18% 0%,
-      rgba(255, 255, 255, 0.08),
-      transparent 55%
-    ),
-    var(--glass-fill);
-}
-
-.glass-hover {
-  transition:
-    transform 0.35s var(--ease-spring),
-    box-shadow 0.35s ease;
-}
-.glass-hover:hover {
-  transform: translateY(-4px);
+/* Floating 3D Navigation Dock */
+.liquid-dock {
+  background: var(--glass-fill-dock);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(226, 232, 240, 0.9);
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
-    0 16px 48px rgba(0, 0, 0, 0.45);
+    0 4px 20px -2px rgba(15, 23, 42, 0.05),
+    0 0 1px 1px rgba(255, 255, 255, 0.9) inset;
 }
 
-/* ---------- Aurora background blobs ---------- */
-
-@keyframes aurora-drift {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  33% {
-    transform: translate(6vw, -4vh) scale(1.08);
-  }
-  66% {
-    transform: translate(-5vw, 5vh) scale(0.94);
-  }
+.perspective-1000 {
+  perspective: 1000px;
 }
 
-.aurora-blob {
-  position: absolute;
+/* Background Ambient Animations */
+@keyframes ambient-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(3vw, -2vh) scale(1.05); }
+}
+
+@keyframes ambient-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-3vw, 3vh) scale(1.04); }
+}
+
+.ambient-blob-1 {
+  animation: ambient-drift-1 20s ease-in-out infinite;
+}
+
+.ambient-blob-2 {
+  animation: ambient-drift-2 24s ease-in-out infinite;
+}
+
+/* Crisp Text Gradients */
+.text-gradient-primary {
+  background: linear-gradient(135deg, #09090b 0%, #27272a 60%, #52525b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.text-gradient-accent {
+  background: linear-gradient(135deg, #4f46e5 0%, #2563eb 50%, #0284c7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Minimalist Light Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f4f6f8;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
   border-radius: 9999px;
-  filter: blur(110px);
-  opacity: 0.45;
-  will-change: transform;
-  animation: aurora-drift 26s ease-in-out infinite;
 }
 
-/* ---------- Grain overlay (kills gradient banding) ---------- */
-
-.noise-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.04;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
-
-/* ---------- Accessibility ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .aurora-blob,
+  .ambient-blob-1,
+  .ambient-blob-2,
   .glass-hover,
-  .glass-hover:hover {
-    animation: none;
-    transition: none;
-    transform: none;
+  .liquid-glass {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
   }
 }
