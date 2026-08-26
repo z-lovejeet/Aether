@@ -1,10 +1,15 @@
+# Pinned for Python 3.9 compatibility (system python on this machine)
+langgraph>=0.2.60,<0.3
+langchain-core>=0.3.29,<0.4
+langchain-groq>=0.2.1,<0.3
+google-genai>=0.6,<1.2
+pypdf>=4.0
+youtube-transcript-api>=0.6.2,<2.0
 fastapi>=0.115
-uvicorn[standard]>=0.32
-langgraph>=0.2.50
-langchain-core>=0.3
-langchain-groq>=0.2
-langchain-google-genai>=2.0
+uvicorn[standard]>=0.30
 supabase>=2.9
 pydantic>=2.8
 python-dotenv>=1.0
-websockets>=13
+websockets>=12
+
+psycopg[binary]>=3.1
