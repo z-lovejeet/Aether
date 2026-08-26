@@ -4,16 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { subscribeToSession, type PipelineEvent } from "@/lib/agent-client";
 
 const LANES = [
-  { id: "ingestion_agent", label: "🔍 Ingestion" },
-  { id: "concept_architect", label: "🏛️ Concepts" },
-  { id: "content_forge", label: "✍️ Content" },
+  { id: "ingestion_agent", label: "Ingestion" },
+  { id: "concept_architect", label: "Concept Graph" },
+  { id: "content_forge", label: "Asset Synthesis" },
 ];
 
 interface Props {
   sessionId: string | null;
 }
 
-/** Live agent pipeline indicator (docs/07 Flow-1 processing screen). */
 export function AgentPipelineIndicator({ sessionId }: Props) {
   const [states, setStates] = useState<Record<string, { state: "idle" | "active" | "done"; ms?: number }>>(
     Object.fromEntries(LANES.map((l) => [l.id, { state: "idle" as const }])),
@@ -32,33 +31,32 @@ export function AgentPipelineIndicator({ sessionId }: Props) {
       }
     });
     return () => unsubRef.current?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   return (
-    <div className="flex items-center justify-center gap-3 sm:gap-4">
+    <div className="flex items-center justify-center gap-2.5 sm:gap-3.5">
       {LANES.map((lane, i) => {
         const s = states[lane.id] ?? { state: "idle" as const };
         return (
-          <div key={lane.id} className="flex items-center gap-3 sm:gap-4">
+          <div key={lane.id} className="flex items-center gap-2.5 sm:gap-3.5">
             <div
-              className={`glass glass-sheen flex flex-col items-center gap-1 px-4 py-3 transition-all duration-300 ${
+              className={`rounded-2xl px-4 py-3 border transition-all duration-200 flex flex-col items-center gap-0.5 ${
                 s.state === "active"
-                  ? "scale-105 border border-[var(--color-accent)] shadow-[0_0_24px_rgba(139,92,246,0.45)]"
+                  ? "bg-white border-slate-900 shadow-md scale-105"
                   : s.state === "done"
-                    ? "opacity-80"
-                    : "opacity-40"
+                  ? "bg-emerald-50 border-emerald-300 text-emerald-900"
+                  : "bg-slate-100/80 border-slate-200/80 text-slate-400 opacity-60"
               }`}
             >
-              <span className="text-sm font-medium">{lane.label}</span>
-              <span className="text-[11px] text-[var(--text-secondary)]">
-                {s.state === "done" ? `${((s.ms ?? 0) / 1000).toFixed(1)}s ✓` : s.state}
+              <span className="text-xs font-semibold text-slate-900">{lane.label}</span>
+              <span className="text-[10px] text-slate-500 font-mono">
+                {s.state === "done" ? `${((s.ms ?? 0) / 1000).toFixed(1)}s ✓` : s.state === "active" ? "Processing…" : "Queued"}
               </span>
             </div>
             {i < LANES.length - 1 && (
               <div
-                className={`h-px w-6 sm:w-10 ${
-                  s.state === "done" ? "bg-[var(--aurora-2)]" : "bg-white/15"
+                className={`h-0.5 w-4 sm:w-8 rounded-full ${
+                  s.state === "done" ? "bg-emerald-400" : "bg-slate-200"
                 }`}
               />
             )}
