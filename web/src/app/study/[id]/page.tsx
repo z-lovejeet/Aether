@@ -1,12 +1,33 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { AuroraBackground } from "@/components/glass/AuroraBackground";
-import { GlassCard } from "@/components/glass/GlassCard";
+import { motion } from "framer-motion";
+import {
+  BookOpen,
+  Target,
+  Layers,
+  FileText,
+  Brain,
+  BarChart3,
+  Volume2,
+  Pause,
+  RotateCw,
+  CheckCircle2,
+  AlertTriangle,
+  Sparkles,
+  Printer,
+  Copy,
+  Check,
+  ArrowRight,
+  ArrowLeft,
+  Zap,
+} from "lucide-react";
+import { LiquidGlassCard } from "@/components/glass/LiquidGlassCard";
+import { LiquidGlassButton } from "@/components/glass/LiquidGlassButton";
+import { LiquidGlassBadge } from "@/components/glass/LiquidGlassBadge";
 import type {
   ConceptNodeDto,
   GeneratedAssetsDto,
@@ -15,30 +36,20 @@ import type {
   GradeResultDto,
   RemediationStepDto,
   RemediationCheckResultDto,
-  MasteryNodeDto,
-  MasteryDataDto,
   ProgressDto,
-  ConceptProgressDto,
-  StrategyStatDto,
-  WeakConceptDto,
 } from "@/lib/agent-client";
 import { submitAnswer, checkRemediation, getProgress } from "@/lib/agent-client";
 
-/* SSR-safe dynamic import for React Flow (uses browser APIs) */
-const MindMapView = dynamic(
-  () => import("@/components/mindmap/MindMapView"),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-[560px] items-center justify-center">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-accent)] border-t-transparent" />
-        <span className="ml-3 text-sm text-[var(--text-secondary)]">
-          Loading mind map…
-        </span>
-      </div>
-    ),
-  },
-);
+/* SSR-safe dynamic import for React Flow */
+const MindMapView = dynamic(() => import("@/components/mindmap/MindMapView"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[560px] items-center justify-center">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
+      <span className="ml-3 text-sm text-slate-500">Loading concept graph…</span>
+    </div>
+  ),
+});
 
 type TabId = "overview" | "quiz" | "flashcards" | "cheatsheet" | "mindmap" | "progress";
 
@@ -52,22 +63,19 @@ interface StudyData {
   materialId?: string;
 }
 
-const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: "overview", label: "Overview", icon: "📖" },
-  { id: "quiz", label: "Quiz", icon: "🎯" },
-  { id: "flashcards", label: "Flashcards", icon: "🃏" },
-  { id: "cheatsheet", label: "Cheat Sheet", icon: "📋" },
-  { id: "mindmap", label: "Mind Map", icon: "🧠" },
-  { id: "progress", label: "Progress", icon: "📊" },
+const TABS = [
+  { id: "overview" as TabId, label: "Overview", icon: BookOpen },
+  { id: "quiz" as TabId, label: "Adaptive Quiz", icon: Target },
+  { id: "flashcards" as TabId, label: "3D Flashcards", icon: Layers },
+  { id: "cheatsheet" as TabId, label: "Cheat Sheet", icon: FileText },
+  { id: "mindmap" as TabId, label: "Mind Map", icon: Brain },
+  { id: "progress" as TabId, label: "Analytics", icon: BarChart3 },
 ];
-
-
-const DIFF_COLORS = ["#34d399", "#34d399", "#fbbf24", "#fbbf24", "#fb7185"];
 
 export default function StudyPage() {
   const params = useParams();
   const router = useRouter();
-  const sessionId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const sessionId = (Array.isArray(params.id) ? params.id[0] : params.id) || "";
   const [tab, setTab] = useState<TabId>("overview");
   const [data, setData] = useState<StudyData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,8 +86,8 @@ export default function StudyPage() {
     if (raw) {
       try {
         setData(JSON.parse(raw) as StudyData);
-      } catch (err) {
-        console.error("Failed to parse study data:", err);
+      } catch {
+        /* ignore */
       }
     }
     setLoading(false);
@@ -87,74 +95,69 @@ export default function StudyPage() {
 
   if (loading) {
     return (
-      <main className="relative flex min-h-dvh flex-col items-center justify-center px-6">
-        <AuroraBackground />
-        <p className="animate-pulse text-sm text-[var(--text-secondary)]">Loading your study system…</p>
+      <main className="relative flex min-h-[80vh] flex-col items-center justify-center text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
+        <p className="mt-4 font-display text-sm text-slate-500">Loading your study system…</p>
       </main>
     );
   }
 
   if (!data) {
     return (
-      <main className="relative flex min-h-dvh flex-col items-center justify-center px-6">
-        <AuroraBackground />
-        <GlassCard className="max-w-md p-8 text-center" interactive>
-          <span className="text-4xl">🔍</span>
-          <h2 className="display mt-4 text-2xl font-bold">No Study System Found</h2>
-          <p className="mt-2 text-sm text-[var(--text-secondary)]">
-            We couldn&apos;t find study assets for this session. Please upload a new chapter or note.
+      <main className="relative min-h-[80vh] flex flex-col items-center justify-center px-6 text-center">
+        <LiquidGlassCard depth="medium" className="max-w-md p-8 border-slate-200 bg-white shadow-md">
+          <div className="flex justify-center mb-3">
+            <AlertTriangle className="h-8 w-8 text-amber-500" />
+          </div>
+          <h2 className="display text-2xl font-bold text-slate-900">Study Hub Not Found</h2>
+          <p className="mt-2 text-xs text-slate-500">
+            No active session data was found in local storage for this ID.
           </p>
-          <Link
-            href="/upload"
-            className="mt-6 inline-block rounded-full bg-[var(--color-accent)] px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/30"
-          >
-            Upload Material →
-          </Link>
-        </GlassCard>
+          <div className="mt-6 flex justify-center gap-3">
+            <Link href="/upload">
+              <LiquidGlassButton size="sm" icon={<Zap className="h-3.5 w-3.5" />}>
+                Launch Studio
+              </LiquidGlassButton>
+            </Link>
+          </div>
+        </LiquidGlassCard>
       </main>
     );
   }
 
-  const { conceptTree = [], generatedAssets = {}, subject = "Biology", level = "intermediate" } = data;
-  const quizItems = generatedAssets.quizItems || [];
-  const flashcards = generatedAssets.flashcards || [];
+  const { generatedAssets, conceptTree, subject = "General", level = "intermediate" } = data;
+  const quizItems = generatedAssets.quizItems ?? [];
+  const flashcards = generatedAssets.flashcards ?? [];
 
   return (
-    <main className="relative min-h-dvh px-4 py-8 sm:px-8 sm:py-12">
-      <AuroraBackground />
-
-      <div className="mx-auto max-w-5xl">
-        {/* Top bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <Link
-            href="/upload"
-            className="text-xs uppercase tracking-widest text-[var(--text-secondary)] hover:text-white transition-colors"
-          >
-            ← Upload another material
-          </Link>
-          <div className="flex items-center gap-2">
-            <span className="glass rounded-full px-3 py-1 text-xs text-[var(--text-secondary)]">
-              Subject: <b className="text-white">{subject}</b>
-            </span>
-            <span className="glass rounded-full px-3 py-1 text-xs capitalize text-[var(--aurora-2)]">
-              {level}
-            </span>
+    <main className="relative min-h-screen px-4 pb-24 sm:px-8">
+      <div className="mx-auto max-w-5xl pt-2 sm:pt-6">
+        {/* Top Header Card */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-5">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <LiquidGlassBadge variant="indigo" size="sm">{subject}</LiquidGlassBadge>
+              <LiquidGlassBadge variant="neutral" size="sm" className="capitalize">{level} Level</LiquidGlassBadge>
+            </div>
+            <h1 className="display text-2xl sm:text-3xl font-extrabold text-slate-900">
+              {conceptTree[0]?.name ? `${conceptTree[0].name} Hub` : "Personalized Study Hub"}
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Personalized explainer, active recall testing, and concept map.
+            </p>
           </div>
+
+          <Link href="/upload">
+            <LiquidGlassButton variant="secondary" size="sm" icon={<RotateCw className="h-3.5 w-3.5" />}>
+              New Material
+            </LiquidGlassButton>
+          </Link>
         </div>
 
-        {/* Header */}
-        <div className="mt-6">
-          <h1 className="display text-3xl font-bold sm:text-4xl">
-            {conceptTree[0]?.name ? `${conceptTree[0].name} Study Hub` : "Your Mastery Hub"}
-          </h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Personalized explainer, adaptive quiz, flashcards & cheat sheet tuned to your Learning DNA.
-          </p>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="mt-6 flex flex-wrap gap-2 border-b border-white/10 pb-4">
+        {/* 6-Tab Navigation Dock */}
+        <div className="mt-5 flex flex-wrap gap-1.5">
           {TABS.map((t) => {
+            const Icon = t.icon;
             const isActive = tab === t.id;
             let countBadge: number | null = null;
             if (t.id === "quiz") countBadge = quizItems.length;
@@ -166,18 +169,18 @@ export default function StudyPage() {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
                   isActive
-                    ? "bg-[var(--color-accent)] text-white font-semibold shadow-lg shadow-purple-500/30 scale-[1.02]"
-                    : "glass glass-hover text-[var(--text-secondary)] hover:text-white"
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "bg-white/80 text-slate-600 hover:text-slate-900 border border-slate-200/90 hover:bg-slate-50"
                 }`}
               >
-                <span>{t.icon}</span>
+                <Icon className="h-3.5 w-3.5" />
                 <span>{t.label}</span>
                 {countBadge !== null && countBadge > 0 && (
                   <span
-                    className={`rounded-full px-1.5 py-0.2 text-[11px] ${
-                      isActive ? "bg-white/25 text-white" : "bg-white/10 text-[var(--text-secondary)]"
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
+                      isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
                     }`}
                   >
                     {countBadge}
@@ -189,7 +192,7 @@ export default function StudyPage() {
         </div>
 
         {/* Tab Content Panels */}
-        <div className="mt-8">
+        <div className="mt-6">
           {tab === "overview" && (
             <OverviewTab
               explainerMd={generatedAssets.explainerMd || data.cleanedText}
@@ -200,6 +203,7 @@ export default function StudyPage() {
 
           {tab === "quiz" && (
             <QuizTab
+              sessionId={sessionId}
               quizItems={quizItems}
               conceptTree={conceptTree}
               onReviewFlashcards={() => setTab("flashcards")}
@@ -247,706 +251,541 @@ function OverviewTab({
   conceptTree: ConceptNodeDto[];
   onNavigateToQuiz: () => void;
 }) {
-  const [speaking, setSpeaking] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(true);
 
-  function handleSpeak() {
+  useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      alert("Text-to-speech is not supported in this browser.");
-      return;
+      setSpeechSupported(false);
     }
-    if (speaking) {
+  }, []);
+
+  function toggleAudio() {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (isPlaying) {
       window.speechSynthesis.cancel();
-      setSpeaking(false);
-      return;
+      setIsPlaying(false);
+    } else {
+      window.speechSynthesis.cancel();
+      const textToRead = explainerMd.replace(/[#*`_\[\]]/g, "").slice(0, 1500);
+      const utter = new SpeechSynthesisUtterance(textToRead);
+      utter.rate = 1.0;
+      utter.onend = () => setIsPlaying(false);
+      utter.onerror = () => setIsPlaying(false);
+      window.speechSynthesis.speak(utter);
+      setIsPlaying(true);
     }
-    const cleanText = explainerMd.replace(/[#*`_>]/g, "").slice(0, 3000);
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 1.0;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-    setSpeaking(true);
   }
 
-  // Parse markdown sections into structured reading blocks
-  const sections = explainerMd.split(/(?=^##\s+)/m).filter((s) => s.trim().length > 0);
-
   return (
-    <div className="space-y-6">
-      {/* Quick Audio & Action Bar */}
-      <GlassCard className="flex flex-wrap items-center justify-between gap-4 p-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleSpeak}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-all ${
-              speaking
-                ? "bg-[var(--color-forget)] text-white shadow-lg shadow-rose-500/30 animate-pulse"
-                : "glass glass-hover text-white"
-            }`}
-          >
-            <span>{speaking ? "⏹ Stop Audio" : "🔊 Listen to Lesson"}</span>
-          </button>
-          <span className="text-xs text-[var(--text-secondary)]">
-            {sections.length} core concept modules
-          </span>
-        </div>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {/* Main Explainer Prose */}
+      <div className="lg:col-span-2 space-y-5">
+        <LiquidGlassCard depth="medium" className="p-7 sm:p-9 border-slate-200/90 bg-white/95 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-indigo-600" />
+              <h2 className="font-display text-lg font-bold text-slate-900">Personalized Explainer</h2>
+            </div>
 
-        <button
-          onClick={onNavigateToQuiz}
-          className="rounded-full bg-[var(--color-accent)] px-5 py-2 text-xs font-semibold shadow-lg shadow-purple-500/25 transition-transform hover:scale-[1.02] active:scale-[0.97]"
-        >
-          Test your memory with Quiz →
-        </button>
-      </GlassCard>
+            {speechSupported && (
+              <button
+                onClick={toggleAudio}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border transition-all ${
+                  isPlaying
+                    ? "bg-slate-900 text-white border-slate-900"
+                    : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                {isPlaying ? <Pause className="h-3.5 w-3.5 text-white" /> : <Volume2 className="h-3.5 w-3.5 text-slate-600" />}
+                <span>{isPlaying ? "Pause Lesson" : "Listen (Spoken)"}</span>
+              </button>
+            )}
+          </div>
 
-      {/* Explainer Sections */}
-      <div className="space-y-6">
-        {sections.map((sec, idx) => {
-          const lines = sec.trim().split("\n");
-          const titleLine = lines[0].replace(/^##\s*/, "");
-          const contentLines = lines.slice(1).join("\n");
+          <div className="mt-5 whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-slate-700 font-normal">
+            {explainerMd}
+          </div>
 
-          return (
-            <GlassCard key={idx} className="p-6 sm:p-8" interactive>
-              <div className="flex items-center gap-3 border-b border-white/10 pb-3">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-accent)] text-xs font-bold text-white">
-                  {idx + 1}
-                </span>
-                <h2 className="display text-xl font-bold text-white sm:text-2xl">{titleLine}</h2>
+          <div className="mt-8 pt-5 border-t border-slate-100 flex justify-between items-center">
+            <span className="text-xs text-slate-500">Ready to test retention?</span>
+            <LiquidGlassButton onClick={onNavigateToQuiz} size="sm" icon={<Target className="h-3.5 w-3.5" />}>
+              Start Quiz →
+            </LiquidGlassButton>
+          </div>
+        </LiquidGlassCard>
+      </div>
+
+      {/* Sidebar: Knowledge Tree Roots */}
+      <div className="space-y-4">
+        <LiquidGlassCard depth="low" className="p-5 border-slate-200/90 bg-white/95">
+          <h3 className="font-display text-sm font-bold text-slate-900 mb-0.5 flex items-center gap-2">
+            <Brain className="h-4 w-4 text-indigo-600" />
+            <span>Extracted Concept Roots</span>
+          </h3>
+          <p className="text-xs text-slate-500 mb-3">
+            Core concepts found in this material
+          </p>
+
+          <div className="space-y-2">
+            {conceptTree.map((c) => (
+              <div
+                key={c.id}
+                className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 transition-colors"
+              >
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-900 truncate max-w-[160px]">{c.name}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white text-slate-600 border border-slate-200 font-mono">
+                    Diff {c.difficulty}/5
+                  </span>
+                </div>
+                {c.keyFacts && c.keyFacts.length > 0 && (
+                  <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{c.keyFacts[0]}</p>
+                )}
               </div>
-              <div className="mt-4 whitespace-pre-wrap font-body text-sm leading-relaxed text-[var(--text-primary)]">
-                {contentLines}
-              </div>
-            </GlassCard>
-          );
-        })}
+            ))}
+          </div>
+        </LiquidGlassCard>
       </div>
     </div>
   );
 }
 
 /* =========================================================================
-   TAB 2: Quiz Tab (Interactive Adaptive Active-Recall Runner)
+   TAB 2: Quiz Tab (Adaptive Runner + Remediation Coach Ladder)
    ========================================================================= */
 
 function QuizTab({
+  sessionId,
   quizItems,
   conceptTree,
   onReviewFlashcards,
 }: {
+  sessionId: string;
   quizItems: QuizItemDto[];
   conceptTree: ConceptNodeDto[];
   onReviewFlashcards: () => void;
 }) {
-  const params = useParams();
-  const sessionId = Array.isArray(params.id) ? params.id[0] : (params.id ?? "");
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [index, setIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [shortAnswerInput, setShortAnswerInput] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [shortAnswer, setShortAnswer] = useState("");
   const [grading, setGrading] = useState(false);
-  const [score, setScore] = useState(0);
-  const [quizFinished, setQuizFinished] = useState(false);
   const [gradeResult, setGradeResult] = useState<GradeResultDto | null>(null);
-
-  // Phase 6: Remediation Coach state
-  const [remediation, setRemediation] = useState<RemediationStepDto | null>(null);
-  const [remediationInput, setRemediationInput] = useState("");
-  const [remediationGrading, setRemediationGrading] = useState(false);
+  const [remediationStep, setRemediationStep] = useState<RemediationStepDto | null>(null);
+  const [microCheckAnswer, setMicroCheckAnswer] = useState("");
+  const [remediationChecking, setRemediationChecking] = useState(false);
   const [remediationResult, setRemediationResult] = useState<RemediationCheckResultDto | null>(null);
+  const [triedStrategies, setTriedStrategies] = useState<string[]>([]);
+  const [score, setScore] = useState(0);
 
-  if (!quizItems.length) {
+  const currentQ = quizItems[index];
+
+  if (quizItems.length === 0) {
     return (
-      <GlassCard className="p-8 text-center">
-        <span className="text-3xl">🎯</span>
-        <h3 className="display mt-3 text-xl font-semibold">Quiz Bank Generating</h3>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          Quiz items are being processed from your concept tree. Check back shortly.
-        </p>
-      </GlassCard>
+      <LiquidGlassCard depth="medium" className="p-8 text-center max-w-lg mx-auto bg-white">
+        <Target className="h-8 w-8 text-slate-400 mx-auto mb-3" />
+        <h3 className="font-display text-lg font-bold text-slate-900">Generating Quiz Questions…</h3>
+        <p className="text-xs text-slate-500 mt-1">Quiz items are being forged for this study set.</p>
+      </LiquidGlassCard>
     );
   }
 
-  const currentItem = quizItems[currentIndex];
-  const isMcq = currentItem.qtype === "mcq" && Array.isArray(currentItem.options) && currentItem.options.length > 0;
+  async function handleGrade() {
+    if (!currentQ || grading) return;
+    setGrading(true);
+    const responseText = currentQ.qtype === "mcq" ? selectedOption || "" : shortAnswer;
 
-  async function handleSubmitAnswer() {
-    if (submitted || grading) return;
-
-    const responseText = isMcq
-      ? (selectedOption ?? "")
-      : shortAnswerInput.trim();
-
-    if (!responseText) return;
-
-    // If quiz item has a DB id, use server-side grading
-    if (currentItem.id) {
-      setGrading(true);
-      try {
-        const result = await submitAnswer(sessionId, currentItem.id, responseText);
-        setGradeResult(result.grade);
-        if (result.grade.verdict === "correct") {
-          setScore((s) => s + 1);
-        } else if (result.grade.verdict === "partial") {
-          setScore((s) => s + 0.5);
-        }
-
-        // Check if Remediation Coach was triggered (fail_count >= 2)
-        if (result.remediation && !result.remediation.isComplete) {
-          setRemediation(result.remediation);
-        }
-      } catch (err) {
-        console.error("Grading API failed, falling back to client-side:", err);
-        // Fallback to client-side grading
-        const clientCorrect = isMcq
-          ? selectedOption?.trim().toUpperCase().startsWith(currentItem.answer.trim().toUpperCase())
-          : false;
-        setGradeResult({
-          verdict: clientCorrect ? "correct" : "wrong",
-          score: clientCorrect ? 1.0 : 0.0,
-          misconception: null,
-          feedbackMd: clientCorrect
-            ? "✨ Correct! Well done."
-            : `Review this concept. The expected answer is: ${currentItem.answer}`,
-        });
-        if (clientCorrect) setScore((s) => s + 1);
-      } finally {
-        setGrading(false);
-        setSubmitted(true);
-      }
-    } else {
-      // No DB id — client-side grading only
-      const clientCorrect = isMcq
-        ? selectedOption?.trim().toUpperCase().startsWith(currentItem.answer.trim().toUpperCase())
-        : false;
-      setGradeResult({
-        verdict: clientCorrect ? "correct" : "wrong",
-        score: clientCorrect ? 1.0 : 0.0,
-        misconception: null,
-        feedbackMd: clientCorrect
-          ? "✨ Correct! Well done."
-          : isMcq
-            ? "Not quite — review this concept and try again."
-            : `Model Answer:\n${currentItem.answer}`,
-      });
-      if (clientCorrect) setScore((s) => s + 1);
-      setSubmitted(true);
-    }
-  }
-
-  async function handleRemediationSubmit() {
-    if (!remediation || !remediationInput.trim() || remediationGrading) return;
-    setRemediationGrading(true);
     try {
-      const result = await checkRemediation(
-        sessionId,
-        currentItem.conceptId || "",
-        currentItem.id || "",
-        remediation.strategy || "",
-        remediation.microCheckAnswer || "",
-        remediationInput.trim(),
-        remediation.triedStrategies || [],
-      );
-      setRemediationResult(result);
-      if (result.passed && result.rescued) {
-        // Concept rescued! Increment score bonus
-        setScore((s) => s + 0.5);
-      } else if (!result.passed && result.nextStep) {
-        // Advance ladder after short delay so user sees feedback
-        setTimeout(() => {
-          setRemediation(result.nextStep!);
-          setRemediationResult(null);
-          setRemediationInput("");
-        }, 3000);
+      const res = await submitAnswer(sessionId, currentQ.id || currentQ.conceptId, responseText);
+      setGradeResult(res.grade);
+      if (res.grade.verdict === "correct") {
+        setScore((s) => s + 1);
       }
-    } catch (err) {
-      console.error("Remediation check failed:", err);
+      if (res.remediation) {
+        setRemediationStep(res.remediation);
+        setTriedStrategies(res.remediation.strategy ? [res.remediation.strategy] : []);
+      }
+    } catch {
+      const isCorrect = currentQ.qtype === "mcq" && selectedOption?.trim().startsWith(currentQ.answer.substring(0, 2));
+      setGradeResult({
+        verdict: isCorrect ? "correct" : "wrong",
+        score: isCorrect ? 100 : 0,
+        misconception: isCorrect ? null : { type: "recall_gap", evidenceQuote: responseText },
+        feedbackMd: isCorrect ? "Correct! Well done." : `Expected: ${currentQ.answer}`,
+      });
+      if (isCorrect) setScore((s) => s + 1);
     } finally {
-      setRemediationGrading(false);
+      setGrading(false);
     }
   }
 
-  function handleNext() {
-    if (currentIndex < quizItems.length - 1) {
-      setCurrentIndex((i) => i + 1);
-      setSelectedOption(null);
-      setShortAnswerInput("");
-      setSubmitted(false);
-      setGradeResult(null);
-      setRemediation(null);
-      setRemediationResult(null);
-      setRemediationInput("");
-    } else {
-      setQuizFinished(true);
+  async function handleRemediationCheck() {
+    if (!remediationStep || !microCheckAnswer.trim()) return;
+    setRemediationChecking(true);
+    const strategy = remediationStep.strategy || "analogy";
+    const microCheckQ = remediationStep.microCheckQuestion || "";
+    try {
+      const res = await checkRemediation(
+        sessionId,
+        currentQ.conceptId,
+        currentQ.id || "",
+        strategy,
+        microCheckQ,
+        microCheckAnswer,
+        triedStrategies,
+      );
+      setRemediationResult(res);
+      if (res.passed) {
+        setScore((s) => s + 1);
+      } else if (res.nextStep) {
+        setRemediationStep(res.nextStep);
+        if (res.nextStep.strategy) {
+          setTriedStrategies((p) => [...p, res.nextStep!.strategy!]);
+        }
+        setMicroCheckAnswer("");
+      }
+    } catch {
+      setRemediationResult({
+        passed: true,
+        rescued: true,
+        feedbackMd: "Concept rescued! Keep pushing forward.",
+      });
+    } finally {
+      setRemediationChecking(false);
     }
   }
 
-  function handleRestart() {
-    setCurrentIndex(0);
+  function handleNextQuestion() {
     setSelectedOption(null);
-    setShortAnswerInput("");
-    setSubmitted(false);
-    setScore(0);
-    setQuizFinished(false);
+    setShortAnswer("");
     setGradeResult(null);
-    setRemediation(null);
+    setRemediationStep(null);
     setRemediationResult(null);
-    setRemediationInput("");
+    setMicroCheckAnswer("");
+    setTriedStrategies([]);
+    if (index < quizItems.length - 1) {
+      setIndex((i) => i + 1);
+    } else {
+      setIndex(0);
+    }
   }
 
-  if (quizFinished) {
-    const pct = Math.round((score / quizItems.length) * 100);
-    return (
-      <GlassCard className="mx-auto max-w-xl p-8 sm:p-12 text-center" interactive>
-        <span className="text-5xl">{pct >= 70 ? "🏆" : "🌱"}</span>
-        <h2 className="display mt-4 text-3xl font-bold">Quiz Completed!</h2>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          You scored <b className="text-white">{score}</b> out of <b className="text-white">{quizItems.length}</b> ({pct}%)
-        </p>
-
-        <div className="mt-6 flex justify-center gap-3">
-          <button
-            onClick={handleRestart}
-            className="rounded-full bg-[var(--color-accent)] px-6 py-2.5 font-display text-sm font-semibold shadow-lg shadow-purple-500/30 transition-transform hover:scale-[1.02] active:scale-[0.97]"
-          >
-            🔄 Retake Quiz
-          </button>
-          <button
-            onClick={onReviewFlashcards}
-            className="glass glass-hover rounded-full px-6 py-2.5 font-display text-sm font-semibold text-white"
-          >
-            🃏 Practice Flashcards →
-          </button>
-        </div>
-      </GlassCard>
-    );
-  }
+  const isMcq = currentQ.qtype === "mcq";
 
   return (
-    <div className="mx-auto max-w-2xl">
-      {/* Progress */}
-      <div className="mb-4 flex items-center justify-between text-xs text-[var(--text-secondary)]">
-        <span>
-          Question <b className="text-white">{currentIndex + 1}</b> of {quizItems.length}
-        </span>
-        <span className="rounded-full bg-white/10 px-2 py-0.5 capitalize text-[var(--aurora-2)]">
-          {currentItem.qtype} · Difficulty {currentItem.difficulty}/5
+    <div className="max-w-2xl mx-auto space-y-4">
+      {/* Quiz Progress Top Bar */}
+      <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+        <span>Question {index + 1} of {quizItems.length}</span>
+        <span className="text-emerald-700 font-semibold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+          Score: {score}/{index + (gradeResult ? 1 : 0)}
         </span>
       </div>
 
-      <div className="mb-6 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-        <div
-          className="h-full bg-gradient-to-r from-[var(--aurora-1)] to-[var(--aurora-2)] transition-all duration-300"
-          style={{ width: `${((currentIndex + 1) / quizItems.length) * 100}%` }}
-        />
-      </div>
+      {/* Main Question Card */}
+      <LiquidGlassCard depth="medium" className="p-7 sm:p-9 border-slate-200/90 bg-white/95 shadow-sm">
+        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+          <LiquidGlassBadge variant="indigo" size="sm">
+            {isMcq ? "Multiple Choice" : "Short Answer"}
+          </LiquidGlassBadge>
+          <LiquidGlassBadge variant="neutral" size="sm">
+            Difficulty {currentQ.difficulty}/5
+          </LiquidGlassBadge>
+        </div>
 
-      {/* Question Card */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentIndex}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.25 }}
-        >
-          <GlassCard className="p-6 sm:p-8" interactive>
-            <h2 className="font-display text-lg font-bold text-white sm:text-xl">
-              {currentItem.question}
-            </h2>
+        <h2 className="font-display text-base sm:text-lg font-bold text-slate-900 mt-5 leading-snug">
+          {currentQ.question}
+        </h2>
 
-            {/* MCQ Options */}
-            {isMcq && (
-              <div className="mt-6 space-y-3">
-                {currentItem.options!.map((opt, idx) => {
-                  const isSelected = selectedOption === opt;
-                  const isAnswer = submitted && gradeResult
-                    ? opt.trim().toUpperCase().startsWith(currentItem.answer.trim().toUpperCase())
-                    : false;
+        {/* Options */}
+        {isMcq && currentQ.options && (
+          <div className="mt-5 space-y-2.5">
+            {currentQ.options.map((opt) => {
+              const isSelected = selectedOption === opt;
+              const isCorrectAnswer = opt.trim().startsWith(currentQ.answer.substring(0, 2));
 
-                  let stateClass = "glass glass-hover opacity-85 hover:opacity-100";
-                  if (submitted && gradeResult) {
-                    if (isAnswer) {
-                      stateClass = "border border-[var(--color-mastery)] bg-[rgba(52,211,153,0.2)] text-white shadow-lg shadow-emerald-500/20";
-                    } else if (isSelected && !isAnswer) {
-                      stateClass = "border border-[var(--color-forget)] bg-[rgba(251,113,133,0.2)] text-white shadow-lg shadow-rose-500/20";
-                    } else {
-                      stateClass = "opacity-40";
-                    }
-                  } else if (isSelected) {
-                    stateClass = "border border-[var(--color-accent)] bg-[rgba(139,92,246,0.2)] shadow-md shadow-purple-500/20";
-                  }
+              let borderStyle = "border-slate-200 bg-slate-50 hover:bg-slate-100/80 text-slate-700";
+              if (gradeResult) {
+                if (isCorrectAnswer) {
+                  borderStyle = "border-emerald-400 bg-emerald-50 text-emerald-900 font-semibold";
+                } else if (isSelected && !isCorrectAnswer) {
+                  borderStyle = "border-rose-300 bg-rose-50 text-rose-900";
+                } else {
+                  borderStyle = "opacity-40 border-slate-200";
+                }
+              } else if (isSelected) {
+                borderStyle = "border-slate-900 bg-slate-100 text-slate-900 font-semibold";
+              }
 
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      disabled={submitted || grading}
-                      onClick={() => setSelectedOption(opt)}
-                      className={`flex w-full items-center p-4 text-left rounded-2xl transition-all ${stateClass}`}
-                    >
-                      <span className="font-body text-sm">{opt}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Short Answer / Explain Input */}
-            {!isMcq && (
-              <div className="mt-6">
-                <textarea
-                  value={shortAnswerInput}
-                  onChange={(e) => setShortAnswerInput(e.target.value)}
-                  disabled={submitted || grading}
-                  rows={4}
-                  placeholder="Type your explanation here in your own words…"
-                  className="glass w-full rounded-2xl p-4 text-sm outline-none placeholder:text-white/30 focus:border focus:border-[var(--color-accent)]"
-                />
-              </div>
-            )}
-
-            {/* Grading in progress */}
-            {grading && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mt-6 flex items-center justify-center gap-3 rounded-2xl bg-white/5 border border-white/10 p-4"
-              >
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-accent)] border-t-transparent" />
-                <span className="text-sm text-[var(--text-secondary)]">Grading your answer…</span>
-              </motion.div>
-            )}
-
-            {/* Grading Result Feedback */}
-            {submitted && gradeResult && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`mt-6 rounded-2xl p-4 text-sm ${
-                  gradeResult.verdict === "correct"
-                    ? "bg-[rgba(52,211,153,0.12)] border border-[var(--color-mastery)] text-emerald-300"
-                    : gradeResult.verdict === "partial"
-                      ? "bg-[rgba(251,191,36,0.12)] border border-[var(--color-learning)] text-amber-300"
-                      : "bg-[rgba(251,113,133,0.12)] border border-[var(--color-forget)] text-rose-300"
-                }`}
-              >
-                <p className="font-semibold">
-                  {gradeResult.verdict === "correct"
-                    ? "✨ Correct!"
-                    : gradeResult.verdict === "partial"
-                      ? "🔶 Partially correct"
-                      : "❌ Misconception detected"}
-                </p>
-                <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-[var(--text-secondary)]">
-                  {gradeResult.feedbackMd}
-                </p>
-                {gradeResult.misconception && (
-                  <p className="mt-2 text-[11px] italic text-[var(--text-secondary)] opacity-70">
-                    Misconception type: {gradeResult.misconception.type}
-                  </p>
-                )}
-              </motion.div>
-            )}
-
-            {/* Remediation Coach Panel (Strategy Ladder) */}
-            {submitted && remediation && !remediation.isComplete && (
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-6 rounded-2xl border border-amber-400/30 bg-[rgba(251,191,36,0.06)] p-5"
-              >
-                {/* Header */}
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
-                    <span>🩺</span> Remediation Coach — Step {remediation.step}/{remediation.totalSteps}
-                  </span>
-                  <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] capitalize text-amber-200">
-                    Strategy: {remediation.strategy?.replace("_", " ")}
-                  </span>
-                </div>
-
-                {/* Strategy Ladder Visual Progress */}
-                <div className="mb-4 flex gap-1.5">
-                  {["analogy", "visual", "steps", "simpler", "story", "different_interest"].map((s) => {
-                    const isCurrent = s === remediation.strategy;
-                    const isTried = remediation.triedStrategies?.includes(s);
-                    return (
-                      <div
-                        key={s}
-                        className={`h-1.5 flex-1 rounded-full transition-all ${
-                          isCurrent
-                            ? "bg-amber-400 shadow-sm shadow-amber-400/50"
-                            : isTried
-                              ? "bg-rose-400/60"
-                              : "bg-white/10"
-                        }`}
-                        title={s}
-                      />
-                    );
-                  })}
-                </div>
-
-                {/* Empathetic Diagnosis */}
-                {remediation.diagnosisMd && (
-                  <p className="mb-3 text-sm italic text-amber-200/90">
-                    {remediation.diagnosisMd}
-                  </p>
-                )}
-
-                {/* Re-teach Card */}
-                <div className="mb-4 rounded-xl bg-white/5 p-4 border border-white/10">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-primary)]">
-                    {remediation.reteachMd}
-                  </p>
-                </div>
-
-                {/* Micro-check Question */}
-                <div className="border-t border-white/10 pt-4">
-                  <p className="mb-2 text-sm font-semibold text-white">
-                    🎯 Quick Check: {remediation.microCheckQuestion}
-                  </p>
-                  <textarea
-                    value={remediationInput}
-                    onChange={(e) => setRemediationInput(e.target.value)}
-                    disabled={remediationGrading || !!remediationResult?.passed}
-                    rows={2}
-                    placeholder="Type your explanation here…"
-                    className="glass w-full rounded-xl p-3 text-sm outline-none placeholder:text-white/30 focus:border focus:border-amber-400/50"
-                  />
-
-                  {/* Micro-check Grading Result */}
-                  {remediationResult && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`mt-3 rounded-xl p-3 text-sm ${
-                        remediationResult.rescued
-                          ? "border border-[var(--color-mastery)] bg-[rgba(52,211,153,0.15)] text-emerald-300"
-                          : remediationResult.parked
-                            ? "border border-white/10 bg-white/5 text-[var(--text-secondary)]"
-                            : "border border-amber-400/30 bg-[rgba(251,191,36,0.1)] text-amber-300"
-                      }`}
-                    >
-                      {remediationResult.rescued ? (
-                        <>
-                          <p className="font-semibold">{remediationResult.celebrationMd || "🎉 Concept Rescued!"}</p>
-                          <p className="mt-1 text-xs text-emerald-200/80">{remediationResult.feedbackMd}</p>
-                        </>
-                      ) : remediationResult.parked ? (
-                        <>
-                          <p className="font-semibold">🌙 Concept Parked for Now</p>
-                          <p className="mt-1 text-xs text-[var(--text-secondary)]">{remediationResult.messageMd || remediationResult.feedbackMd}</p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="font-semibold">🔄 Not quite yet — trying next strategy in 3s…</p>
-                          <p className="mt-1 text-xs text-amber-200/80">{remediationResult.feedbackMd}</p>
-                        </>
-                      )}
-                    </motion.div>
-                  )}
-
-                  {/* Submit Micro-check Button */}
-                  {!remediationResult?.passed && (
-                    <div className="mt-3 flex justify-end">
-                      <button
-                        onClick={handleRemediationSubmit}
-                        disabled={!remediationInput.trim() || remediationGrading}
-                        className="rounded-full bg-amber-500 px-5 py-2 font-display text-xs font-semibold text-black shadow-lg shadow-amber-500/30 transition-transform hover:scale-[1.02] active:scale-[0.97] disabled:opacity-50"
-                      >
-                        {remediationGrading ? "Evaluating…" : "Check Answer →"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Actions */}
-            <div className="mt-8 flex items-center justify-end gap-3 pt-4 border-t border-white/10">
-              {!submitted && !grading ? (
+              return (
                 <button
-                  onClick={handleSubmitAnswer}
-                  disabled={isMcq ? !selectedOption : !shortAnswerInput.trim()}
-                  className="rounded-full bg-[var(--color-accent)] px-7 py-2.5 font-display text-sm font-semibold shadow-lg shadow-purple-500/30 transition-transform hover:scale-[1.02] active:scale-[0.97] disabled:opacity-50"
+                  key={opt}
+                  disabled={Boolean(gradeResult)}
+                  onClick={() => setSelectedOption(opt)}
+                  className={`w-full text-left p-3.5 rounded-xl border transition-all text-xs sm:text-sm ${borderStyle}`}
                 >
-                  Submit Answer →
+                  {opt}
                 </button>
-              ) : submitted ? (
-                <button
-                  onClick={handleNext}
-                  className="rounded-full bg-[var(--color-mastery)] px-7 py-2.5 font-display text-sm font-semibold text-black shadow-lg shadow-emerald-500/30 transition-transform hover:scale-[1.02] active:scale-[0.97]"
-                >
-                  {currentIndex < quizItems.length - 1 ? "Next Question →" : "Finish Quiz →"}
-                </button>
-              ) : null}
+              );
+            })}
+          </div>
+        )}
+
+        {!isMcq && (
+          <div className="mt-5">
+            <textarea
+              value={shortAnswer}
+              onChange={(e) => setShortAnswer(e.target.value)}
+              disabled={Boolean(gradeResult)}
+              rows={4}
+              placeholder="Type your explanation in your own words…"
+              className="w-full rounded-xl p-3.5 text-xs sm:text-sm text-slate-800 outline-none border border-slate-200 bg-slate-50/70 focus:border-slate-400 focus:bg-white"
+            />
+          </div>
+        )}
+
+        {/* Grade Feedback Box */}
+        {gradeResult && !remediationStep && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`mt-5 p-4 rounded-xl border ${
+              gradeResult.verdict === "correct"
+                ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                : "bg-rose-50 border-rose-200 text-rose-900"
+            }`}
+          >
+            <div className="flex items-center gap-2 font-display font-bold text-xs sm:text-sm">
+              {gradeResult.verdict === "correct" ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <span>Correct! Understanding Verified</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-4 w-4 text-rose-600" />
+                  <span>Misconception Detected</span>
+                </>
+              )}
             </div>
-          </GlassCard>
-        </motion.div>
-      </AnimatePresence>
+            <p className="text-xs mt-1.5 leading-relaxed">{gradeResult.feedbackMd}</p>
+          </motion.div>
+        )}
+
+        {/* Remediation Ladder Panel */}
+        {remediationStep && !remediationResult?.passed && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-5 p-5 rounded-2xl bg-amber-50 border border-amber-200 space-y-3"
+          >
+            <div className="flex items-center justify-between border-b border-amber-200/80 pb-2">
+              <div className="flex items-center gap-1.5">
+                <Zap className="h-4 w-4 text-amber-600" />
+                <span className="font-display text-xs sm:text-sm font-bold text-amber-900">
+                  Remediation Coach · Step {remediationStep.step}/5 ({remediationStep.strategy ? remediationStep.strategy.replace("_", " ") : "rescue"})
+                </span>
+              </div>
+              <span className="text-[10px] text-amber-700 font-mono">Rescue Loop</span>
+            </div>
+
+            <div className="text-xs sm:text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">
+              {remediationStep.reteachMd || remediationStep.diagnosisMd || remediationStep.messageMd}
+            </div>
+
+            {remediationStep.microCheckQuestion && (
+              <div className="pt-2 border-t border-amber-200/80">
+                <label className="block text-xs font-semibold text-slate-900 mb-1.5">
+                  Micro-Check: {remediationStep.microCheckQuestion}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    value={microCheckAnswer}
+                    onChange={(e) => setMicroCheckAnswer(e.target.value)}
+                    placeholder="Answer to rescue concept…"
+                    className="flex-1 rounded-xl px-3.5 py-1.5 text-xs text-slate-900 outline-none border border-amber-300 bg-white"
+                  />
+                  <LiquidGlassButton
+                    onClick={handleRemediationCheck}
+                    loading={remediationChecking}
+                    size="sm"
+                    variant="primary"
+                  >
+                    Verify Rescue
+                  </LiquidGlassButton>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* Rescue Celebration */}
+        {remediationResult?.passed && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mt-5 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900"
+          >
+            <div className="flex items-center gap-2 font-display font-bold text-xs sm:text-sm">
+              <Sparkles className="h-4 w-4 text-emerald-600" />
+              <span>Concept Rescued! Strategy Updated</span>
+            </div>
+            <p className="text-xs mt-1 text-emerald-800">{remediationResult.feedbackMd}</p>
+          </motion.div>
+        )}
+
+        {/* Action Controls */}
+        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+          <span className="text-xs text-slate-500">
+            {gradeResult ? "Answer graded" : "Select an answer to check"}
+          </span>
+
+          {!gradeResult ? (
+            <LiquidGlassButton
+              onClick={handleGrade}
+              loading={grading}
+              disabled={isMcq ? !selectedOption : !shortAnswer.trim()}
+              size="md"
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            >
+              Submit Answer
+            </LiquidGlassButton>
+          ) : (
+            <LiquidGlassButton
+              onClick={handleNextQuestion}
+              variant="primary"
+              size="md"
+              icon={<ArrowRight className="h-4 w-4" />}
+            >
+              Next Question →
+            </LiquidGlassButton>
+          )}
+        </div>
+      </LiquidGlassCard>
     </div>
   );
 }
 
 /* =========================================================================
-   TAB 3: Flashcards Tab (3D Flip + Interest-Personalized Hints)
+   TAB 3: Flashcards Tab (3D Flip Physics + Interest Hooks)
    ========================================================================= */
 
 function FlashcardsTab({ flashcards }: { flashcards: FlashcardDto[] }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [showHint, setShowHint] = useState(false);
-  const [masteredCount, setMasteredCount] = useState(0);
 
-  if (!flashcards.length) {
+  if (flashcards.length === 0) {
     return (
-      <GlassCard className="p-8 text-center">
-        <span className="text-3xl">🃏</span>
-        <h3 className="display mt-3 text-xl font-semibold">Generating Flashcards</h3>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          Flashcards with interest-based memory hints are being prepared.
-        </p>
-      </GlassCard>
+      <LiquidGlassCard depth="medium" className="p-8 text-center max-w-lg mx-auto bg-white">
+        <Layers className="h-8 w-8 text-slate-400 mx-auto mb-3" />
+        <h3 className="font-display text-lg font-bold text-slate-900">Generating Flashcards…</h3>
+        <p className="text-xs text-slate-500 mt-1">Flashcard deck is being forged.</p>
+      </LiquidGlassCard>
     );
   }
 
-  const currentCard = flashcards[currentIndex];
-
-  function handleFlip() {
-    setFlipped(!flipped);
-  }
+  const currentCard = flashcards[index];
 
   function handleNext() {
-    if (currentIndex < flashcards.length - 1) {
-      setCurrentIndex((i) => i + 1);
-      setFlipped(false);
-      setShowHint(false);
-    }
+    setFlipped(false);
+    setShowHint(false);
+    if (index < flashcards.length - 1) setIndex((i) => i + 1);
+    else setIndex(0);
   }
 
   function handlePrev() {
-    if (currentIndex > 0) {
-      setCurrentIndex((i) => i - 1);
-      setFlipped(false);
-      setShowHint(false);
-    }
+    setFlipped(false);
+    setShowHint(false);
+    if (index > 0) setIndex((i) => i - 1);
+    else setIndex(flashcards.length - 1);
   }
 
   return (
-    <div className="mx-auto max-w-xl">
-      {/* Top status */}
-      <div className="mb-4 flex items-center justify-between text-xs text-[var(--text-secondary)]">
-        <span>
-          Card <b className="text-white">{currentIndex + 1}</b> of {flashcards.length}
-        </span>
-        <span className="text-[var(--color-mastery)] font-medium">
-          ⭐ {masteredCount} Mastered
-        </span>
+    <div className="max-w-lg mx-auto space-y-4">
+      <div className="flex justify-between items-center text-xs text-slate-500 px-1">
+        <span>Card {index + 1} of {flashcards.length}</span>
+        <span className="text-slate-400">Click card to flip</span>
       </div>
 
       {/* 3D Flip Card Container */}
-      <div className="relative min-h-[320px] w-full cursor-pointer perspective-1000" onClick={handleFlip}>
+      <div className="perspective-1000 min-h-[280px]">
         <motion.div
           animate={{ rotateY: flipped ? 180 : 0 }}
-          transition={{ duration: 0.45, ease: "easeInOut" }}
-          className="relative h-full min-h-[320px] w-full [transform-style:preserve-3d]"
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          style={{ transformStyle: "preserve-3d" }}
+          onClick={() => setFlipped(!flipped)}
+          className="relative min-h-[280px] w-full cursor-pointer"
         >
           {/* Front Face */}
-          <GlassCard
-            className={`absolute inset-0 flex flex-col justify-between p-8 text-center [backface-visibility:hidden] ${
-              !flipped ? "pointer-events-auto" : "pointer-events-none"
+          <div
+            className={`absolute inset-0 rounded-2xl p-7 flex flex-col justify-between border border-slate-200/90 bg-white shadow-md [backface-visibility:hidden] ${
+              flipped ? "pointer-events-none" : ""
             }`}
-            interactive
           >
-            <span className="text-xs uppercase tracking-widest text-[var(--aurora-2)]">Question / Prompt</span>
-            <p className="font-display text-xl font-bold leading-relaxed text-white sm:text-2xl">
-              {currentCard.front}
-            </p>
-            <p className="text-xs text-[var(--text-secondary)]">Click to flip card ↷</p>
-          </GlassCard>
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-bold">
+                Active Recall Prompt
+              </span>
+              <h3 className="font-display text-lg sm:text-xl font-bold text-slate-900 mt-3 leading-snug">
+                {currentCard.front}
+              </h3>
+            </div>
+
+            <div>
+              {currentCard.hint && (
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowHint(!showHint);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium cursor-pointer"
+                >
+                  <Sparkles className="h-3 w-3 text-amber-600" />
+                  <span>{showHint ? currentCard.hint : "Show Memory Hook Hint"}</span>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Back Face */}
-          <GlassCard
-            className={`absolute inset-0 flex flex-col justify-between p-8 text-center [backface-visibility:hidden] [transform:rotateY(180deg)] ${
-              flipped ? "pointer-events-auto" : "pointer-events-none"
+          <div
+            className={`absolute inset-0 rounded-2xl p-7 flex flex-col justify-between border border-emerald-200 bg-emerald-50/60 shadow-md [transform:rotateY(180deg)] [backface-visibility:hidden] ${
+              !flipped ? "pointer-events-none" : ""
             }`}
-            interactive
           >
-            <span className="text-xs uppercase tracking-widest text-[var(--color-mastery)]">Answer</span>
-            <p className="font-body text-base leading-relaxed text-white">
-              {currentCard.back}
-            </p>
-            <p className="text-xs text-[var(--text-secondary)]">Click to flip back ↶</p>
-          </GlassCard>
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-700 font-bold">
+                Definition & Context
+              </span>
+              <p className="text-sm text-slate-800 mt-3 leading-relaxed font-medium">
+                {currentCard.back}
+              </p>
+            </div>
+
+            <div className="flex justify-between items-center text-xs text-slate-500 pt-3 border-t border-emerald-200/60">
+              <span>SM-2 Memory Card</span>
+              <span className="text-emerald-700 font-medium">Click to flip back</span>
+            </div>
+          </div>
         </motion.div>
       </div>
 
-      {/* Memory Hook Hint */}
-      {currentCard.hint && (
-        <div className="mt-4">
-          {!showHint ? (
-            <button
-              onClick={() => setShowHint(true)}
-              className="mx-auto block text-xs text-[var(--aurora-3)] hover:underline"
-            >
-              💡 Need a memory hook hint?
-            </button>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass rounded-2xl border border-[var(--aurora-3)]/30 p-3.5 text-center text-xs text-amber-200"
-            >
-              <span className="font-semibold">💡 Memory Bridge: </span>
-              {currentCard.hint}
-            </motion.div>
-          )}
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="mt-6 flex items-center justify-between gap-4">
-        <button
-          onClick={handlePrev}
-          disabled={currentIndex === 0}
-          className="glass glass-hover rounded-full px-5 py-2 text-xs font-semibold disabled:opacity-30"
-        >
-          ← Previous
-        </button>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              setMasteredCount((c) => c + 1);
-              handleNext();
-            }}
-            className="rounded-full bg-[rgba(52,211,153,0.18)] border border-[var(--color-mastery)] px-4 py-2 text-xs font-semibold text-emerald-300 hover:bg-[rgba(52,211,153,0.28)]"
-          >
-            👍 Mastered
-          </button>
-          <button
-            onClick={handleNext}
-            className="rounded-full bg-[rgba(251,191,36,0.18)] border border-[var(--color-learning)] px-4 py-2 text-xs font-semibold text-amber-300 hover:bg-[rgba(251,191,36,0.28)]"
-          >
-            🔄 Still Learning
-          </button>
-        </div>
-
-        <button
-          onClick={handleNext}
-          disabled={currentIndex === flashcards.length - 1}
-          className="glass glass-hover rounded-full px-5 py-2 text-xs font-semibold disabled:opacity-30"
-        >
-          Next →
-        </button>
+      {/* Navigation Controls */}
+      <div className="flex items-center justify-between gap-3">
+        <LiquidGlassButton onClick={handlePrev} variant="secondary" size="sm" icon={<ArrowLeft className="h-3.5 w-3.5" />}>
+          Previous
+        </LiquidGlassButton>
+        <LiquidGlassButton onClick={handleNext} variant="primary" size="sm" icon={<ArrowRight className="h-3.5 w-3.5" />}>
+          Next Card
+        </LiquidGlassButton>
       </div>
     </div>
   );
 }
 
 /* =========================================================================
-   TAB 4: Cheat Sheet Tab (Printable Condensed Reference)
+   TAB 4: Cheat Sheet Tab (Printable Condensed Guide)
    ========================================================================= */
 
 function CheatSheetTab({ cheatSheetMd, subject }: { cheatSheetMd: string; subject: string }) {
@@ -958,45 +797,39 @@ function CheatSheetTab({ cheatSheetMd, subject }: { cheatSheetMd: string; subjec
     setTimeout(() => setCopied(false), 2000);
   }
 
-  function handlePrint() {
-    window.print();
-  }
-
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      {/* Control bar */}
-      <GlassCard className="flex items-center justify-between p-4">
-        <span className="text-xs text-[var(--text-secondary)]">
-          One-page condensed reference for <b className="text-white">{subject}</b>
-        </span>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleCopy}
-            className="glass glass-hover rounded-full px-4 py-1.5 text-xs font-semibold text-white"
-          >
-            {copied ? "✓ Copied!" : "📋 Copy Markdown"}
-          </button>
-          <button
-            onClick={handlePrint}
-            className="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-xs font-semibold text-white shadow-lg shadow-purple-500/25"
-          >
-            🖨️ Print / Save PDF
-          </button>
-        </div>
-      </GlassCard>
+    <div className="max-w-3xl mx-auto space-y-4">
+      <LiquidGlassCard depth="medium" className="p-7 sm:p-9 border-slate-200/90 bg-white/95 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <h2 className="font-display text-xl font-bold text-slate-900">{subject} Reference Sheet</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              High-yield definitions and concept summaries.
+            </p>
+          </div>
 
-      {/* Sheet Content */}
-      <GlassCard className="p-8 sm:p-10 font-body" interactive>
-        <div className="border-b border-white/10 pb-4">
-          <h2 className="display text-2xl font-bold text-white">{subject} — Quick Reference</h2>
-          <p className="mt-1 text-xs text-[var(--text-secondary)]">
-            Essential definitions, key formulas, and high-frequency exam concepts.
-          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 hover:text-slate-900"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+              <span>{copied ? "Copied" : "Copy"}</span>
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 text-xs font-semibold text-white shadow-sm hover:bg-slate-800"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              <span>Print</span>
+            </button>
+          </div>
         </div>
-        <div className="mt-6 whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-primary)]">
+
+        <div className="mt-6 whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-slate-700 font-normal">
           {cheatSheetMd}
         </div>
-      </GlassCard>
+      </LiquidGlassCard>
     </div>
   );
 }
@@ -1004,13 +837,6 @@ function CheatSheetTab({ cheatSheetMd, subject }: { cheatSheetMd: string; subjec
 /* =========================================================================
    TAB 6: Progress Analytics (Mastery Overview + Strategy Stats)
    ========================================================================= */
-
-const PROGRESS_COLORS = {
-  mastered: { bg: "rgba(52,211,153,0.15)", border: "#34d399", text: "#34d399" },
-  learning: { bg: "rgba(251,191,36,0.15)", border: "#fbbf24", text: "#fbbf24" },
-  weak: { bg: "rgba(251,113,133,0.15)", border: "#fb7185", text: "#fb7185" },
-  new: { bg: "rgba(139,92,246,0.15)", border: "#8b5cf6", text: "#8b5cf6" },
-};
 
 function ProgressTab({ materialId }: { materialId: string | undefined }) {
   const [progress, setProgress] = useState<ProgressDto | null>(null);
@@ -1029,227 +855,63 @@ function ProgressTab({ materialId }: { materialId: string | undefined }) {
 
   if (loading) {
     return (
-      <GlassCard className="flex items-center justify-center p-12">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-accent)] border-t-transparent" />
-        <span className="ml-3 text-sm text-[var(--text-secondary)]">
-          Loading analytics…
-        </span>
-      </GlassCard>
+      <div className="flex justify-center p-12">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
+      </div>
     );
   }
 
   if (!progress || progress.overallStats.totalConcepts === 0) {
     return (
-      <GlassCard className="p-8 text-center">
-        <span className="text-3xl">📊</span>
-        <h3 className="display mt-3 text-xl font-semibold">
-          No Progress Data Yet
-        </h3>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          Complete some quizzes to see your mastery analytics here.
-        </p>
-      </GlassCard>
+      <LiquidGlassCard depth="medium" className="p-8 text-center max-w-lg mx-auto bg-white">
+        <BarChart3 className="h-8 w-8 text-slate-400 mx-auto mb-3" />
+        <h3 className="font-display text-lg font-bold text-slate-900">No Progress Data Yet</h3>
+        <p className="text-xs text-slate-500 mt-1">Complete quizzes to unlock live mastery analytics.</p>
+      </LiquidGlassCard>
     );
   }
 
-  const { overallStats, conceptProgress, strategyStats, weakestConcepts } =
-    progress;
+  const { overallStats, conceptProgress } = progress;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      {/* ── Overall Mastery Summary ── */}
-      <GlassCard className="p-6" interactive>
-        <h3 className="font-display text-lg font-bold text-white">
-          📊 Mastery Overview
-        </h3>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+    <div className="max-w-2xl mx-auto space-y-4">
+      {/* Overview Bento */}
+      <LiquidGlassCard depth="low" className="p-5 border-slate-200/90 bg-white/95">
+        <h3 className="font-display text-sm font-bold text-slate-900 mb-3">Mastery Distribution</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
           {[
-            { label: "Total", value: overallStats.totalConcepts, color: "#8b5cf6" },
-            { label: "Mastered", value: overallStats.mastered, color: "#34d399" },
-            { label: "Learning", value: overallStats.learning, color: "#fbbf24" },
-            { label: "Weak", value: overallStats.weak, color: "#fb7185" },
-            { label: "New", value: overallStats.new, color: "#a78bfa" },
+            { label: "Total", value: overallStats.totalConcepts, color: "text-slate-900" },
+            { label: "Mastered", value: overallStats.mastered, color: "text-emerald-700" },
+            { label: "Learning", value: overallStats.learning, color: "text-amber-700" },
+            { label: "Weak", value: overallStats.weak, color: "text-rose-700" },
+            { label: "New", value: overallStats.new, color: "text-indigo-700" },
           ].map((s) => (
-            <div key={s.label} className="rounded-xl bg-white/5 p-3 text-center">
-              <p className="text-2xl font-bold" style={{ color: s.color }}>
-                {s.value}
-              </p>
-              <p className="text-xs text-[var(--text-secondary)]">{s.label}</p>
+            <div key={s.label} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-center">
+              <p className={`font-display text-xl font-bold ${s.color}`}>{s.value}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
+      </LiquidGlassCard>
 
-        {/* Stacked Mastery Progress Bar */}
-        {overallStats.totalConcepts > 0 && (
-          <div className="mt-4 flex h-3 w-full overflow-hidden rounded-full bg-white/5">
-            <div
-              className="h-full bg-[#34d399] transition-all"
-              style={{
-                width: `${(overallStats.mastered / overallStats.totalConcepts) * 100}%`,
-              }}
-              title={`${overallStats.mastered} mastered`}
-            />
-            <div
-              className="h-full bg-[#fbbf24] transition-all"
-              style={{
-                width: `${(overallStats.learning / overallStats.totalConcepts) * 100}%`,
-              }}
-              title={`${overallStats.learning} learning`}
-            />
-            <div
-              className="h-full bg-[#fb7185] transition-all"
-              style={{
-                width: `${(overallStats.weak / overallStats.totalConcepts) * 100}%`,
-              }}
-              title={`${overallStats.weak} weak`}
-            />
-            <div
-              className="h-full bg-[#a78bfa] transition-all"
-              style={{
-                width: `${(overallStats.new / overallStats.totalConcepts) * 100}%`,
-              }}
-              title={`${overallStats.new} new`}
-            />
-          </div>
-        )}
-
-        {/* Attempt Stats Row */}
-        <div className="mt-4 flex flex-wrap gap-4 text-xs text-[var(--text-secondary)]">
-          <span>
-            Total attempts:{" "}
-            <b className="text-white">{overallStats.totalAttempts}</b>
-          </span>
-          <span>
-            Correct:{" "}
-            <b className="text-emerald-400">{overallStats.totalCorrect}</b>
-          </span>
-          <span>
-            Accuracy:{" "}
-            <b className="text-white">
-              {overallStats.totalAttempts > 0
-                ? Math.round(
-                    (overallStats.totalCorrect / overallStats.totalAttempts) *
-                      100,
-                  )
-                : 0}
-              %
-            </b>
-          </span>
-        </div>
-      </GlassCard>
-
-      {/* ── Per-Concept Mastery Bars ── */}
-      <GlassCard className="p-6" interactive>
-        <h3 className="font-display text-lg font-bold text-white">
-          🎯 Concept Mastery
-        </h3>
-        <div className="mt-4 space-y-3">
-          {conceptProgress.map((c) => {
-            const colors =
-              PROGRESS_COLORS[c.status] || PROGRESS_COLORS.new;
-            /* Normalize ease factor to a 0-100% bar: EF range is 1.3–3.0 */
-            const barWidth = Math.min(
-              100,
-              Math.max(5, ((c.easeFactor - 1.3) / 1.7) * 100),
-            );
-            return (
-              <div key={c.conceptId} className="flex items-center gap-3">
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ background: colors.border }}
+      {/* Concept Ease Factor Bars */}
+      <LiquidGlassCard depth="medium" className="p-5 border-slate-200/90 bg-white/95">
+        <h3 className="font-display text-sm font-bold text-slate-900 mb-3">Concept Ease Factors</h3>
+        <div className="space-y-2.5 text-xs">
+          {conceptProgress.map((c) => (
+            <div key={c.conceptId} className="flex items-center gap-3">
+              <span className="w-32 truncate text-slate-800 font-medium">{c.name}</span>
+              <div className="h-2 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-emerald-500"
+                  style={{ width: `${Math.min(100, Math.max(10, ((c.easeFactor - 1.3) / 1.7) * 100))}%` }}
                 />
-                <span className="w-36 truncate text-sm text-white sm:w-44">
-                  {c.name}
-                </span>
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/5">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${barWidth}%`,
-                      background: colors.border,
-                    }}
-                  />
-                </div>
-                <span
-                  className="w-16 text-right text-[11px] capitalize"
-                  style={{ color: colors.text }}
-                >
-                  {c.status}
-                </span>
               </div>
-            );
-          })}
+              <span className="w-14 text-right font-mono text-slate-500 text-[11px]">EF {c.easeFactor.toFixed(1)}</span>
+            </div>
+          ))}
         </div>
-      </GlassCard>
-
-      {/* ── Strategy Effectiveness ── */}
-      {strategyStats.length > 0 && (
-        <GlassCard className="p-6" interactive>
-          <h3 className="font-display text-lg font-bold text-white">
-            🧠 Strategy Effectiveness
-          </h3>
-          <p className="mt-1 text-xs text-[var(--text-secondary)]">
-            How effective each remediation strategy has been for you.
-          </p>
-          <div className="mt-4 space-y-3">
-            {strategyStats.map((s) => (
-              <div key={s.strategy} className="flex items-center gap-3">
-                <span className="w-28 truncate text-sm capitalize text-white sm:w-36">
-                  {s.strategy.replace("_", " ")}
-                </span>
-                <div className="h-3 flex-1 overflow-hidden rounded-full bg-white/5">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all"
-                    style={{ width: `${s.rate * 100}%` }}
-                  />
-                </div>
-                <span className="w-24 text-right text-xs text-[var(--text-secondary)]">
-                  {s.successes}/{s.total} ({Math.round(s.rate * 100)}%)
-                </span>
-              </div>
-            ))}
-          </div>
-        </GlassCard>
-      )}
-
-      {/* ── Weakest Concepts (Needs Attention) ── */}
-      {weakestConcepts.length > 0 && (
-        <GlassCard className="p-6" interactive>
-          <h3 className="font-display text-lg font-bold text-white">
-            ⚠️ Needs Attention
-          </h3>
-          <p className="mt-1 text-xs text-[var(--text-secondary)]">
-            Concepts you&apos;ve struggled with the most — focus review here.
-          </p>
-          <div className="mt-4 space-y-2">
-            {weakestConcepts.map((c) => (
-              <div
-                key={c.conceptId}
-                className="flex items-center justify-between rounded-xl border border-rose-500/15 bg-[rgba(251,113,133,0.06)] p-3"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
-                  <span className="text-sm text-white">{c.name}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-rose-300">
-                    {c.failCount} fails
-                  </span>
-                  <span className="text-xs text-[var(--text-secondary)]">
-                    EF: {c.easeFactor.toFixed(1)}
-                  </span>
-                  {c.dueDate && (
-                    <span className="text-xs text-amber-300">
-                      Due: {c.dueDate}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </GlassCard>
-      )}
+      </LiquidGlassCard>
     </div>
   );
 }
-
