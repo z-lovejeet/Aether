@@ -380,6 +380,94 @@ export async function sendChatMessage(
   return res.json();
 }
 
+/* ============ Practice Arena API (Groq-Powered) ============ */
+
+export type PracticeGenerateRequestDto = {
+  subject?: string;
+  topics: string[] | string;
+  level?: "beginner" | "intermediate" | "advanced";
+  count?: number;
+  goal?: "exam" | "deep_understanding" | "interview_prep" | "speed_review";
+  qtypes?: ("mcq" | "short" | "explain")[];
+};
+
+export type GeneratedPracticeItemDto = {
+  id: string;
+  conceptId: string;
+  conceptName: string;
+  subject: string;
+  qtype: "mcq" | "short" | "explain";
+  question: string;
+  options: string[] | null;
+  answer: string;
+  explanation: string;
+  hint: string;
+  difficulty: number;
+};
+
+export type PracticeGenerateResponseDto = {
+  subject: string;
+  topics: string;
+  level: string;
+  count: number;
+  questions: GeneratedPracticeItemDto[];
+};
+
+export async function generatePracticeQuestions(
+  req: PracticeGenerateRequestDto,
+): Promise<PracticeGenerateResponseDto> {
+  const res = await fetch(`${AGENT_API_URL}/practice/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) throw new Error(`Practice generation failed: ${await res.text()}`);
+  return res.json();
+}
+
+/* ============ Study Systems & Materials Management ============ */
+
+export type StoredMaterialDto = {
+  id: string;
+  title: string;
+  sourceType: string;
+  createdAt: string | null;
+  subject: string;
+  conceptsCount: number;
+};
+
+export async function getMaterials(limit = 50): Promise<StoredMaterialDto[]> {
+  try {
+    const res = await fetch(`${AGENT_API_URL}/materials?limit=${limit}`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function deleteMaterial(materialId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${AGENT_API_URL}/materials/${materialId}`, {
+      method: "DELETE",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteSession(sessionId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${AGENT_API_URL}/sessions/${sessionId}`, {
+      method: "DELETE",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 
 
 
