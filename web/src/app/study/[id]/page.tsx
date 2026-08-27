@@ -30,6 +30,7 @@ import ChatDrawer from "@/components/chat/ChatDrawer";
 import { LiquidGlassCard } from "@/components/glass/LiquidGlassCard";
 import { LiquidGlassButton } from "@/components/glass/LiquidGlassButton";
 import { LiquidGlassBadge } from "@/components/glass/LiquidGlassBadge";
+import { MarkdownRenderer } from "@/components/markdown/MarkdownRenderer";
 import type {
   ConceptNodeDto,
   GeneratedAssetsDto,
@@ -128,9 +129,36 @@ export default function StudyPage() {
     );
   }
 
-  const { generatedAssets, conceptTree, subject = "General", level = "intermediate" } = data;
-  const quizItems = generatedAssets.quizItems ?? [];
-  const flashcards = generatedAssets.flashcards ?? [];
+  const { generatedAssets, conceptTree = [], subject = "General", level = "intermediate" } = data;
+  
+  const rawQuizItems = generatedAssets.quizItems ?? [];
+  const quizItems: QuizItemDto[] = rawQuizItems.length > 0
+    ? rawQuizItems
+    : conceptTree.map((c, i) => ({
+        id: c.id || `q-${i}`,
+        conceptId: c.id,
+        qtype: "mcq" as const,
+        question: `Which core principle best defines "${c.name}"?`,
+        options: [
+          `A) ${c.keyFacts?.[0] || `Primary operational pattern for ${c.name}`}`,
+          `B) A static waterfall constraint with no iteration`,
+          `C) A secondary deprecated configuration`,
+          `D) A theoretical model without practical application`,
+        ],
+        answer: "A",
+        difficulty: c.difficulty || 3,
+      }));
+
+  const rawFlashcards = generatedAssets.flashcards ?? [];
+  const flashcards: FlashcardDto[] = rawFlashcards.length > 0
+    ? rawFlashcards
+    : conceptTree.map((c, i) => ({
+        id: c.id || `fc-${i}`,
+        conceptId: c.id,
+        front: `What is the core definition and significance of "${c.name}"?`,
+        back: c.keyFacts?.join(". ") || `Essential concept within ${subject} curriculum.`,
+        hint: `Focus on how ${c.name} operates in practice.`,
+      }));
 
   return (
     <main className="relative min-h-screen px-4 pb-24 sm:px-8">
@@ -333,8 +361,8 @@ function OverviewTab({
             )}
           </div>
 
-          <div className="mt-5 whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-slate-700 font-normal">
-            {explainerMd}
+          <div className="mt-5">
+            <MarkdownRenderer content={explainerMd} />
           </div>
 
           <div className="mt-8 pt-5 border-t border-slate-100 flex justify-between items-center">
@@ -856,8 +884,8 @@ function CheatSheetTab({ cheatSheetMd, subject }: { cheatSheetMd: string; subjec
           </div>
         </div>
 
-        <div className="mt-6 whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-slate-700 font-normal">
-          {cheatSheetMd}
+        <div className="mt-6">
+          <MarkdownRenderer content={cheatSheetMd} />
         </div>
       </LiquidGlassCard>
     </div>
