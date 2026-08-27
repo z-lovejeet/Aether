@@ -33,15 +33,17 @@ RULES:
 8. Mix card types: definition, term→meaning, process-order ("what comes next?"), contrast pairs.
 9. Generate {count} cards across all concepts.
 
-Return STRICT JSON array:
-[
-  {{
-    "conceptId": "c1",
-    "front": "What organelle performs photosynthesis?",
-    "back": "Chloroplast — contains chlorophyll pigment in thylakoid membranes.",
-    "hint": "Think of it like the solar panels on a spacecraft 🚀 — captures light energy!"
-  }}
-]"""
+Return STRICT JSON object:
+{{
+  "flashcards": [
+    {{
+      "conceptId": "c1",
+      "front": "What organelle performs photosynthesis?",
+      "back": "Chloroplast — contains chlorophyll pigment in thylakoid membranes.",
+      "hint": "Think of it like solar panels on a spacecraft 🚀 — captures light energy!"
+    }}
+  ]
+}}"""
 
 
 def _cache_key(cleaned: str, interests: list) -> str:

@@ -20,11 +20,16 @@ async def generators_fanout(state: dict) -> dict:
     """Run content_forge, quiz_master, flashcard_smith in parallel."""
     await emit("node_start", node="generators_fanout")
 
-    # Run all three generator agents concurrently
+    # Run all three generator agents with small 150ms stagger to prevent 0ms burst rate-limiting
+    async def _stagger(coro, delay: float):
+        if delay > 0:
+            await asyncio.sleep(delay)
+        return await coro
+
     results = await asyncio.gather(
-        content_forge(state),
-        quiz_master(state),
-        flashcard_smith(state),
+        _stagger(content_forge(state), 0.0),
+        _stagger(quiz_master(state), 0.15),
+        _stagger(flashcard_smith(state), 0.30),
         return_exceptions=True,
     )
 

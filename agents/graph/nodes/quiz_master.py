@@ -31,33 +31,27 @@ RULES:
 7. NEVER ask about content NOT in the material.
 8. Generate {count} questions total across all concepts.
 
-Return STRICT JSON array:
-[
-  {{
-    "conceptId": "c1",
-    "qtype": "mcq",
-    "question": "...",
-    "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
-    "answer": "A",
-    "difficulty": 3
-  }},
-  {{
-    "conceptId": "c2",
-    "qtype": "short",
-    "question": "...",
-    "options": null,
-    "answer": "Model answer here...",
-    "difficulty": 2
-  }},
-  {{
-    "conceptId": "c3",
-    "qtype": "explain",
-    "question": "Explain in your own words...",
-    "options": null,
-    "answer": "Model answer...\\n\\nRubric:\\n- Point 1\\n- Point 2\\n- Point 3",
-    "difficulty": 4
-  }}
-]"""
+Return STRICT JSON object:
+{{
+  "quizItems": [
+    {{
+      "conceptId": "c1",
+      "qtype": "mcq",
+      "question": "...",
+      "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
+      "answer": "A",
+      "difficulty": 3
+    }},
+    {{
+      "conceptId": "c2",
+      "qtype": "short",
+      "question": "...",
+      "options": null,
+      "answer": "Model answer here...",
+      "difficulty": 2
+    }}
+  ]
+}}"""
 
 
 def _cache_key(cleaned: str, level: str, goal: str) -> str:
