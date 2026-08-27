@@ -301,21 +301,53 @@ export type ProgressDto = {
 export async function getMasteryMap(
   materialId: string,
 ): Promise<MasteryMapDto> {
-  const res = await fetch(
-    `${AGENT_API_URL}/materials/${materialId}/mastery-map`,
-  );
-  if (!res.ok) throw new Error(`mastery map failed: ${await res.text()}`);
-  return res.json();
+  if (!materialId || materialId === "undefined" || materialId === "null") {
+    return { nodes: [] };
+  }
+  try {
+    const res = await fetch(
+      `${AGENT_API_URL}/materials/${materialId}/mastery-map`,
+    );
+    if (!res.ok) return { nodes: [] };
+    return await res.json();
+  } catch (err) {
+    console.warn("getMasteryMap fetch warning:", err);
+    return { nodes: [] };
+  }
 }
 
 export async function getProgress(
   materialId: string,
 ): Promise<ProgressDto> {
-  const res = await fetch(
-    `${AGENT_API_URL}/materials/${materialId}/progress`,
-  );
-  if (!res.ok) throw new Error(`progress failed: ${await res.text()}`);
-  return res.json();
+  const defaultProgress: ProgressDto = {
+    conceptProgress: [],
+    strategyStats: [],
+    weakestConcepts: [],
+    overallStats: {
+      totalConcepts: 0,
+      mastered: 0,
+      learning: 0,
+      weak: 0,
+      new: 0,
+      totalAttempts: 0,
+      totalCorrect: 0,
+      totalPartial: 0,
+      totalWrong: 0,
+    },
+  };
+  if (!materialId || materialId === "undefined" || materialId === "null") {
+    return defaultProgress;
+  }
+  try {
+    const res = await fetch(
+      `${AGENT_API_URL}/materials/${materialId}/progress`,
+    );
+    if (!res.ok) return defaultProgress;
+    return await res.json();
+  } catch (err) {
+    console.warn("getProgress fetch warning:", err);
+    return defaultProgress;
+  }
 }
 
 /* ============ Phase 8: Chat Tutor RAG ============ */
