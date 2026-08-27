@@ -170,6 +170,19 @@ export type RemediationStepDto = {
   triedStrategies?: string[];
 };
 
+export type UserStatsDto = {
+  xp: number;
+  streak: number;
+  lastActive: string | null;
+};
+
+export type XPAwardDto = {
+  xp: number;
+  streak: number;
+  xpAwarded: number;
+  activity: string;
+};
+
 export type RemediationCheckResultDto = {
   passed: boolean;
   rescued: boolean;
@@ -180,12 +193,14 @@ export type RemediationCheckResultDto = {
   parked?: boolean;
   messageMd?: string;
   nextStep?: RemediationStepDto;
+  xpAward?: XPAwardDto | null;
 };
 
 export type AttemptResultDto = {
   grade: GradeResultDto;
   sm2: SM2UpdateDto | null;
   remediation?: RemediationStepDto | null;
+  xpAward?: XPAwardDto | null;
 };
 
 export async function submitAnswer(
@@ -467,6 +482,52 @@ export async function deleteSession(sessionId: string): Promise<boolean> {
     return false;
   }
 }
+
+/* ============ Phase 9: Audio Lessons (ElevenLabs TTS) ============ */
+
+export async function generateTTSAudio(text: string, maxChars = 5000): Promise<Blob> {
+  const res = await fetch(`${AGENT_API_URL}/tts/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, maxChars }),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`TTS synthesis failed: ${errText}`);
+  }
+  return res.blob();
+}
+
+export function getTTSStreamUrl(): string {
+  return `${AGENT_API_URL}/tts/stream`;
+}
+
+/* ============ Phase 9: Gamification (XP + Streak) ============ */
+
+export async function getUserStats(): Promise<UserStatsDto> {
+  try {
+    const res = await fetch(`${AGENT_API_URL}/user/stats`);
+    if (!res.ok) return { xp: 0, streak: 0, lastActive: null };
+    return res.json();
+  } catch {
+    return { xp: 0, streak: 0, lastActive: null };
+  }
+}
+
+export async function awardXP(points = 10, activity = "study"): Promise<XPAwardDto> {
+  try {
+    const res = await fetch(`${AGENT_API_URL}/user/xp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ points, activity }),
+    });
+    if (!res.ok) return { xp: points, streak: 1, xpAwarded: points, activity };
+    return res.json();
+  } catch {
+    return { xp: points, streak: 1, xpAwarded: points, activity };
+  }
+}
+
 
 
 
