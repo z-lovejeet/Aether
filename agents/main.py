@@ -94,8 +94,10 @@ async def _execute_run(run_id: str, session_id: str, req: RunRequest) -> None:
     final_update: dict[str, Any] = {}
     try:
         _RUNS[run_id]["status"] = "running"
+        print(f"[run {run_id}] starting pipeline execution...")
         async for update in graph.astream(initial_state, stream_mode="updates"):
             for node_name, partial in update.items():
+                print(f"[run {run_id}] ✓ node completed: {node_name}")
                 if isinstance(partial, dict):
                     final_update.update(partial)
                 await bus.publish(session_id, {
@@ -106,6 +108,7 @@ async def _execute_run(run_id: str, session_id: str, req: RunRequest) -> None:
         _RUNS[run_id].update({"status": "done", "result": {
             k: v for k, v in final_update.items() if k != "messages"
         }})
+        print(f"[run {run_id}] ★ PIPELINE COMPLETED SUCCESSFULLY!")
         await bus.publish(session_id, {
             "event": "asset_ready",
             "node": "orchestrator",

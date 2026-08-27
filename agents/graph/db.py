@@ -288,11 +288,17 @@ def get_quiz_item(quiz_item_id: str) -> dict | None:
         row = cur.fetchone()
         if not row:
             return None
+        raw_opts = row[3]
+        if isinstance(raw_opts, str):
+            try:
+                raw_opts = _json.loads(raw_opts)
+            except Exception:
+                pass
         return {
             "id": str(row[0]),
             "concept_id": str(row[1]),
             "question": row[2],
-            "options": _json.loads(row[3]) if row[3] else None,
+            "options": raw_opts if isinstance(raw_opts, list) else None,
             "answer": row[4],
             "qtype": row[5],
             "difficulty": row[6],
