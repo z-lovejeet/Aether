@@ -116,44 +116,40 @@ async def content_forge(state: dict) -> dict:
     )
     user_payload = (
         f"CONCEPT OUTLINE:\n{concept_outline}\n\n"
-        f"SOURCE MATERIAL:\n\"\"\"\n{cleaned[:20000]}\n\"\"\""
+        f"SOURCE MATERIAL:\n\"\"\"\n{cleaned[:6000]}\n\"\"\""
     )
 
-    # ---- Generate explainer via Groq (Gemini fallback) ----
+    # ---- Generate explainer and cheatsheet in PARALLEL via Groq (Gemini fallback) ----
     from llm.groq import _groq_generate, _gemini_text_fallback
 
-    explainer_md = ""
-    try:
-        explainer_md = await _groq_generate(system, user_payload)
-    except Exception:
+    async def _gen_explainer() -> str:
         try:
-            explainer_md = await _gemini_text_fallback(system, user_payload)
-        except Exception as err:
-            print(f"[content_forge] explainer generation failed: {err}")
-            # Fallback: use cleaned text with heading structure
-            explainer_md = cleaned
+            return await _groq_generate(system, user_payload)
+        except Exception:
+            try:
+                return await _gemini_text_fallback(system, user_payload)
+            except Exception as err:
+                print(f"[content_forge] explainer generation fallback failed: {err}")
+                return cleaned
 
-    # ---- Generate cheat sheet from explainer ----
-    cheatsheet_md = ""
-    try:
-        cheatsheet_md = await _groq_generate(
-            CHEATSHEET_SYSTEM,
-            f"EXPLAINER TO CONDENSE:\n\"\"\"\n{explainer_md[:12000]}\n\"\"\""
-        )
-    except Exception:
+    async def _gen_cheatsheet() -> str:
+        cs_payload = f"CONCEPT OUTLINE:\n{concept_outline}\n\nKEY MATERIAL:\n\"\"\"\n{cleaned[:12000]}\n\"\"\""
         try:
-            cheatsheet_md = await _gemini_text_fallback(
-                CHEATSHEET_SYSTEM,
-                f"EXPLAINER TO CONDENSE:\n\"\"\"\n{explainer_md[:12000]}\n\"\"\""
-            )
-        except Exception as err:
-            print(f"[content_forge] cheatsheet generation failed: {err}")
+            return await _groq_generate(CHEATSHEET_SYSTEM, cs_payload)
+        except Exception:
+            try:
+                return await _gemini_text_fallback(CHEATSHEET_SYSTEM, cs_payload)
+            except Exception as err:
+                print(f"[content_forge] cheatsheet generation fallback failed: {err}")
+                return ""
+
+    explainer_md, cheatsheet_md = await asyncio.gather(_gen_explainer(), _gen_cheatsheet())
 
     result = {
         "generatedAssets": {
             **(state.get("generatedAssets") or {}),
             "explainerMd": explainer_md,
-            "cheatSheetMd": cheatsheet_md,
+            "cheatSheetMd": cheatsheet_md or explainer_md,
         }
     }
     _cache_put(key, result)
