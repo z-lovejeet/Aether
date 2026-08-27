@@ -12,8 +12,9 @@ import uuid
 from typing import Any, Optional, Union
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from graph.events import EventBus, bus_var, session_id_var
@@ -70,6 +71,16 @@ class PracticeGenerateRequest(BaseModel):
     count: int = Field(default=5, description="Number of practice questions (3 to 10)")
     goal: str = Field(default="exam", description="Learning goal: exam, deep_understanding, interview_prep, speed_review")
     qtypes: list[str] = Field(default=["mcq", "short", "explain"], description="Question types")
+
+
+class TTSRequest(BaseModel):
+    text: str = Field(..., description="Text to synthesize with Bella AI voice")
+    maxChars: int = Field(default=5000, description="Max characters to synthesize")
+
+
+class XPAwardRequest(BaseModel):
+    points: int = Field(default=10, description="XP points to award")
+    activity: str = Field(default="study", description="Activity name")
 
 
 @app.get("/health")
@@ -262,11 +273,21 @@ async def submit_attempt(req: AttemptRequest) -> dict[str, Any]:
             except Exception as err:
                 print(f"[attempts] remediation generation failed: {err}")
 
+    # 4c. Award XP for quiz progress
+    xp_award = None
+    try:
+        from graph.db import award_xp
+        pts = 10 if grade_result["verdict"] == "correct" else 5 if grade_result["verdict"] == "partial" else 2
+        xp_award = await asyncio.to_thread(award_xp, user_id, pts, "quiz_attempt")
+    except Exception as err:
+        print(f"[attempts] XP award failed: {err}")
+
     # 5. Return result
     return {
         "grade": grade_result,
         "sm2": sm2_update,
         "remediation": remediation,
+        "xpAward": xp_award,
     }
 
 
@@ -349,6 +370,14 @@ async def check_remediation(req: RemediationCheckRequest) -> dict[str, Any]:
         except Exception as err:
             print(f"[remediation/check] DNA write-back failed: {err}")
 
+        # Award 25 bonus XP for concept rescue!
+        xp_award = None
+        try:
+            from graph.db import award_xp
+            xp_award = await asyncio.to_thread(award_xp, user_id, 25, "concept_rescue")
+        except Exception as err:
+            print(f"[remediation/check] XP award failed: {err}")
+
         return {
             "passed": True,
             "rescued": True,
@@ -357,6 +386,7 @@ async def check_remediation(req: RemediationCheckRequest) -> dict[str, Any]:
             "sm2": sm2_update,
             "celebrationMd": f"🎉 Brilliant! The **{req.strategy}** approach clicked! "
                              f"I've noted this works best for you — future explanations will lean this way.",
+            "xpAward": xp_award,
         }
     else:
         # 2b. FAILED — advance ladder
@@ -710,6 +740,62 @@ async def remove_session(session_id: str) -> dict[str, Any]:
     from graph.db import delete_session
     await asyncio.to_thread(delete_session, session_id)
     return {"deleted": True, "sessionId": session_id}
+
+
+# ============ Phase 9: Audio Lessons (ElevenLabs TTS) ============
+
+
+@app.post("/tts/generate")
+async def tts_generate(req: TTSRequest) -> Response:
+    """Generate audio from text using ElevenLabs Bella voice. Returns MP3."""
+    from llm.tts import generate_speech
+    try:
+        audio = await generate_speech(req.text, req.maxChars)
+        return Response(
+            content=audio,
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": "inline; filename=lesson.mp3",
+                "Cache-Control": "public, max-age=86400",
+            },
+        )
+    except Exception as err:
+        print(f"[tts] generate failed: {err}")
+        raise HTTPException(status_code=500, detail=f"TTS synthesis error: {err}")
+
+
+@app.post("/tts/stream")
+async def tts_stream(req: TTSRequest):
+    """Stream TTS audio using ElevenLabs Bella voice. Returns chunked MP3 stream."""
+    from llm.tts import stream_speech
+    try:
+        return StreamingResponse(
+            stream_speech(req.text, req.maxChars),
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "inline; filename=lesson.mp3"},
+        )
+    except Exception as err:
+        print(f"[tts] stream failed: {err}")
+        raise HTTPException(status_code=500, detail=f"TTS stream error: {err}")
+
+
+# ============ Phase 9: Gamification (XP + Streak) ============
+
+
+@app.get("/user/stats")
+async def user_stats() -> dict[str, Any]:
+    """Fetch current XP, streak, and activity for the active learner."""
+    from graph.db import get_user_stats, normalize_user_id
+    user_id = normalize_user_id("dev-user")
+    return await asyncio.to_thread(get_user_stats, user_id)
+
+
+@app.post("/user/xp")
+async def add_xp(req: XPAwardRequest) -> dict[str, Any]:
+    """Award XP points and update learner's daily streak."""
+    from graph.db import award_xp, normalize_user_id
+    user_id = normalize_user_id("dev-user")
+    return await asyncio.to_thread(award_xp, user_id, req.points, req.activity)
 
 
 @app.websocket("/ws/{session_id}")

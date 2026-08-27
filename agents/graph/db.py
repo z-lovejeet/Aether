@@ -929,4 +929,80 @@ def list_materials(limit: int = 50) -> list[dict]:
         return out
 
 
+def get_user_stats(user_id: str) -> dict:
+    """Get XP, streak, and last_active for gamification (docs/04 §profiles)."""
+    user_id = normalize_user_id(user_id)
+    conn = _get_conn()
+    with conn.cursor() as cur:
+        _ensure_user_exists(cur, user_id)
+        cur.execute(
+            "SELECT xp, streak, last_active FROM profiles WHERE user_id = %s",
+            (user_id,),
+        )
+        row = cur.fetchone()
+        if row:
+            return {
+                "xp": int(row[0] or 0),
+                "streak": int(row[1] or 0),
+                "lastActive": row[2].isoformat() if row[2] else None,
+            }
+    return {"xp": 0, "streak": 0, "lastActive": None}
+
+
+def award_xp(user_id: str, points: int = 10, activity: str = "study") -> dict:
+    """Award XP points and update consecutive daily learning streak."""
+    import datetime
+    user_id = normalize_user_id(user_id)
+    conn = _get_conn()
+    with conn.cursor() as cur:
+        _ensure_user_exists(cur, user_id)
+        cur.execute(
+            "SELECT xp, streak, last_active FROM profiles WHERE user_id = %s",
+            (user_id,),
+        )
+        row = cur.fetchone()
+        current_xp = int(row[0] or 0) if row else 0
+        current_streak = int(row[1] or 0) if row else 0
+        last_active = row[2] if row else None
+
+        today = datetime.date.today()
+        new_streak = current_streak
+        if last_active:
+            if isinstance(last_active, str):
+                try:
+                    last_active_date = datetime.date.fromisoformat(last_active)
+                except Exception:
+                    last_active_date = today
+            else:
+                last_active_date = last_active
+
+            delta = (today - last_active_date).days
+            if delta == 1:
+                new_streak += 1
+            elif delta > 1:
+                new_streak = 1
+            elif delta == 0 and new_streak == 0:
+                new_streak = 1
+        else:
+            new_streak = 1
+
+        new_xp = current_xp + max(0, points)
+        cur.execute(
+            """
+            UPDATE profiles
+            SET xp = %s, streak = %s, last_active = %s
+            WHERE user_id = %s
+            """,
+            (new_xp, new_streak, today, user_id),
+        )
+        conn.commit()
+        return {
+            "xp": new_xp,
+            "streak": new_streak,
+            "xpAwarded": points,
+            "activity": activity,
+        }
+
+
+
 
