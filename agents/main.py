@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from typing import Any
+from typing import Any, Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -55,6 +55,12 @@ class RemediationCheckRequest(BaseModel):
     microCheckAnswer: str = Field(..., description="expected answer for grading")
     responseText: str = Field(..., description="student's micro-check response")
     triedStrategies: list[str] = Field(default_factory=list, description="previously tried strategies")
+
+
+class ChatRequest(BaseModel):
+    sessionId: str = Field(..., description="session UUID or identifier")
+    materialId: Optional[str] = Field(default=None, description="material UUID scope (optional, auto-resolved if absent)")
+    question: str = Field(..., description="learner's question text")
 
 
 @app.get("/health")
@@ -491,6 +497,70 @@ async def get_progress(material_id: str) -> dict[str, Any]:
             **attempt_stats,
         },
     }
+
+
+# ============ Phase 8: Chat Tutor RAG Endpoint ============
+
+
+@app.post("/chat")
+async def chat(req: ChatRequest) -> dict[str, Any]:
+    """Socratic Chat Tutor RAG endpoint (docs/13 §Chat).
+
+    Retrieves grounded context from user's uploaded material, applies Learning DNA,
+    and returns a tailored answer with source citations and follow-up prompts.
+    """
+    from graph.db import get_material_for_session, normalize_user_id
+    from graph.nodes.chat_tutor import run_chat_query
+
+    mat_id = req.materialId
+    if not mat_id:
+        mat_id = await asyncio.to_thread(get_material_for_session, req.sessionId)
+
+    if not mat_id:
+        raise HTTPException(
+            status_code=404,
+            detail="No study material found for this session. Please upload notes first.",
+        )
+
+    # Fetch user's Learning DNA
+    user_id = normalize_user_id("dev-user")
+    dna = None
+    try:
+        from graph.db import _get_conn
+        import json as _json
+
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT learning_dna FROM profiles WHERE user_id = %s", (user_id,))
+            row = cur.fetchone()
+            if row:
+                dna = row[0] if isinstance(row[0], dict) else _json.loads(row[0]) if row[0] else {}
+    except Exception as err:
+        print(f"[chat] DNA lookup warning: {err}")
+
+    try:
+        result = await run_chat_query(
+            session_id=req.sessionId,
+            material_id=mat_id,
+            question=req.question,
+            learning_dna=dna,
+        )
+
+        # Notify any connected WebSocket clients
+        await bus.publish(req.sessionId, {
+            "event": "asset_ready",
+            "node": "chat_tutor",
+            "data": {
+                "type": "chat_answer",
+                "question": req.question,
+                "sourcesCount": len(result.get("sources", [])),
+            },
+        })
+
+        return result
+    except Exception as err:
+        print(f"[chat] query execution failed: {err}")
+        raise HTTPException(status_code=500, detail=f"Chat tutor error: {err}")
 
 
 @app.websocket("/ws/{session_id}")
