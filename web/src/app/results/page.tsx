@@ -16,6 +16,7 @@ import {
   Clock,
   Sparkles,
   RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/glass/LiquidGlassCard";
 import { LiquidGlassButton } from "@/components/glass/LiquidGlassButton";
@@ -76,7 +77,7 @@ const DEFAULT_SYSTEMS: SavedSystem[] = [
 ];
 
 export default function ResultsPage() {
-  const [systems, setSystems] = useState<SavedSystem[]>(DEFAULT_SYSTEMS);
+  const [systems, setSystems] = useState<SavedSystem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubject, setSelectedSubject] = useState<string>("All");
   const [sortBy, setSortBy] = useState<"newest" | "mastery" | "concepts">("newest");
@@ -89,6 +90,7 @@ export default function ResultsPage() {
     if (typeof window === "undefined") return;
 
     let isMounted = true;
+    const wasCleared = localStorage.getItem("library_cleared") === "true";
     const sessionMap = new Map<string, SavedSystem>();
 
     // 1. Scan sessionStorage (stored reverse chronologically or with timestamps)
@@ -129,15 +131,15 @@ export default function ResultsPage() {
       }
     }
 
-    // Combine default systems + sessionStorage systems
+    // Combine custom session systems
     const baseMap = new Map<string, SavedSystem>();
-    // Session items first (newer)
     for (const [id, sys] of sessionMap.entries()) {
       baseMap.set(id, sys);
     }
-    // Default sample systems
-    for (const d of DEFAULT_SYSTEMS) {
-      if (!baseMap.has(d.id)) {
+
+    // Only inject default sample systems if library was NEVER cleared and no custom items exist
+    if (!wasCleared && baseMap.size === 0) {
+      for (const d of DEFAULT_SYSTEMS) {
         baseMap.set(d.id, d);
       }
     }
@@ -148,10 +150,11 @@ export default function ResultsPage() {
     getMaterials().then((remoteMaterials) => {
       if (!isMounted) return;
       if (remoteMaterials && remoteMaterials.length > 0) {
-        setSystems((_) => {
+        localStorage.removeItem("library_cleared");
+        setSystems((prev) => {
           const mergedMap = new Map<string, SavedSystem>();
-          for (const [id, sys] of sessionMap.entries()) {
-            mergedMap.set(id, sys);
+          for (const s of prev) {
+            mergedMap.set(s.id, s);
           }
           for (const m of remoteMaterials) {
             if (!mergedMap.has(m.id)) {
@@ -171,11 +174,6 @@ export default function ResultsPage() {
               });
             }
           }
-          for (const d of DEFAULT_SYSTEMS) {
-            if (!mergedMap.has(d.id)) {
-              mergedMap.set(d.id, d);
-            }
-          }
           return Array.from(mergedMap.values());
         });
       }
@@ -189,8 +187,13 @@ export default function ResultsPage() {
   async function handleDelete(id: string, materialId?: string) {
     // 1. Remove from local state
     const sysToDelete = systems.find((s) => s.id === id);
-    setSystems((prev) => prev.filter((s) => s.id !== id));
+    const updated = systems.filter((s) => s.id !== id);
+    setSystems(updated);
     setDeleteConfirmId(null);
+
+    if (updated.length === 0 && typeof window !== "undefined") {
+      localStorage.setItem("library_cleared", "true");
+    }
 
     // 2. Remove from sessionStorage
     if (typeof window !== "undefined") {
@@ -215,8 +218,9 @@ export default function ResultsPage() {
       // 1. Backend database wipe
       await clearAllMaterials();
 
-      // 2. Clear sessionStorage study items
+      // 2. Mark library as explicitly cleared in localStorage
       if (typeof window !== "undefined") {
+        localStorage.setItem("library_cleared", "true");
         const keysToRemove: string[] = [];
         for (let i = 0; i < sessionStorage.length; i++) {
           const k = sessionStorage.key(i);
@@ -229,7 +233,7 @@ export default function ResultsPage() {
         }
       }
 
-      // 3. Reset local state
+      // 3. Reset local state to empty
       setSystems([]);
       setClearConfirmOpen(false);
       setDeletedToast("Library completely cleared.");
@@ -239,6 +243,15 @@ export default function ResultsPage() {
     } finally {
       setIsClearing(false);
     }
+  }
+
+  function handleRestoreDemos() {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("library_cleared");
+    }
+    setSystems(DEFAULT_SYSTEMS);
+    setDeletedToast("Demo study decks restored.");
+    setTimeout(() => setDeletedToast(null), 3500);
   }
 
   const subjects = useMemo(() => {
@@ -421,14 +434,23 @@ export default function ResultsPage() {
 
         {/* ─── Systems Grid ─── */}
         {filteredSystems.length === 0 ? (
-          <div className="mt-8">
+          <div className="mt-8 space-y-4">
             <EmptyState
               icon={<Layers className="h-6 w-6 text-indigo-600" />}
-              title="No Study Systems Found"
-              description={searchQuery ? "Try adjusting your search query or filters." : "Your first system is sixty seconds away."}
+              title="Your Library is Empty"
+              description={searchQuery ? "Try adjusting your search query or filters." : "Upload materials in Studio or restore demo study sets to get started."}
               actionHref="/upload"
               actionLabel="Launch Studio"
             />
+            <div className="text-center">
+              <button
+                onClick={handleRestoreDemos}
+                className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 font-semibold transition-colors"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>Restore Sample Decks</span>
+              </button>
+            </div>
           </div>
         ) : (
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

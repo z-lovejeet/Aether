@@ -900,21 +900,18 @@ def delete_session(session_id: str) -> bool:
         return True
 
 
-def clear_all_materials(user_id: str) -> bool:
-    """Delete all materials, concepts, quizzes, and session history for the user."""
-    user_id = normalize_user_id(user_id)
+def clear_all_materials(user_id: str | None = None) -> bool:
+    """Delete all materials, concepts, quizzes, flashcards, and session history."""
     conn = _get_conn()
     with conn.cursor() as cur:
-        # Delete materials belonging to user's subjects
-        cur.execute(
-            """
-            DELETE FROM materials
-            WHERE subject_id IN (SELECT id FROM subjects WHERE user_id = %s)
-            """,
-            (user_id,),
-        )
-        cur.execute("DELETE FROM attempts WHERE user_id = %s", (user_id,))
-        cur.execute("DELETE FROM agent_runs WHERE session_id IN (SELECT id FROM agent_runs)")
+        cur.execute("DELETE FROM flashcards")
+        cur.execute("DELETE FROM quiz_items")
+        cur.execute("DELETE FROM attempts")
+        cur.execute("DELETE FROM mastery")
+        cur.execute("DELETE FROM documents_chunks")
+        cur.execute("DELETE FROM concepts")
+        cur.execute("DELETE FROM materials")
+        cur.execute("DELETE FROM agent_runs")
         conn.commit()
         return True
 
