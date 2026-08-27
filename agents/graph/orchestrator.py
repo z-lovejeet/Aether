@@ -60,6 +60,7 @@ def build_graph():
     """Assemble the supervisor graph. Specialists are stubs except those
     implemented in graph/nodes/* (Phase 1: ingestion)."""
     from .events import make_timed
+    from .nodes.chat_tutor import chat_tutor as _chat_tutor
     from .nodes.concept_architect import concept_architect as _architect
     from .nodes.generators_fanout import generators_fanout as _generators
     from .nodes.grader import grader as _grader
@@ -70,7 +71,7 @@ def build_graph():
 
     graph = StateGraph(MasteryState)
 
-    # Phase 1-6: real implementations
+    # Phase 1-8: real implementations
     graph.add_node("ingestion_agent", make_timed(_ingestion, "ingestion_agent"))
     graph.add_node("concept_architect", make_timed(_architect, "concept_architect"))
     graph.add_node(
@@ -84,6 +85,7 @@ def build_graph():
         "remediation_coach", make_timed(_remediation_coach, "remediation_coach")
     )
     graph.add_node("scheduler_agent", make_timed(_scheduler, "scheduler_agent"))
+    graph.add_node("chat_tutor", make_timed(_chat_tutor, "chat_tutor"))
 
     for name, spec in SPECIALISTS:
         if name in (
@@ -97,6 +99,7 @@ def build_graph():
             "grader",
             "remediation_coach",
             "scheduler_agent",
+            "chat_tutor",
         ):
             continue  # real implementations registered above
         graph.add_node(name, _stub_node(name, spec))
