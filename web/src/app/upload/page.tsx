@@ -200,24 +200,34 @@ export default function UploadPage() {
 
   if (busy) {
     return (
-      <main className="relative flex min-h-[80vh] flex-col items-center justify-center gap-6 px-6 text-center">
+      <main className="relative flex min-h-[85vh] flex-col items-center justify-center gap-8 px-4 py-8 text-center">
+        {/* Futuristic Ambient Glow Background */}
+        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/3 right-10 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+
         <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="space-y-2"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-3 z-10"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold">
-            <span>Processing Ingestion</span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900 text-white text-xs font-mono font-medium shadow-md">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+            <span>ORCHESTRATING 6-AGENT PIPELINE</span>
+            <span className="text-slate-400 font-sans">|</span>
+            <span className="text-indigo-300">Groq LPU + Gemini Vision</span>
           </div>
-          <h2 className="display text-3xl font-extrabold text-slate-900 sm:text-4xl">
-            Synthesizing Your Study Hub…
+
+          <h2 className="display text-3xl font-extrabold text-slate-900 sm:text-4xl tracking-tight">
+            Synthesizing Your Active Study Hub…
           </h2>
-          <p className="text-sm text-slate-500 max-w-md mx-auto">
-            Extracting core concept hierarchy, generating active quizzes, and preparing 3D flashcards.
+          <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
+            Constructing concept DAG, synthesizing LaTeX explainer, generating active recall quizzes, and forging SM-2 flashcard anchors.
           </p>
         </motion.div>
 
-        <AgentPipelineIndicator sessionId={sessionId} />
+        <div className="w-full z-10">
+          <AgentPipelineIndicator sessionId={sessionId} />
+        </div>
       </main>
     );
   }
