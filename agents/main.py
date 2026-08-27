@@ -742,12 +742,12 @@ async def remove_session(session_id: str) -> dict[str, Any]:
     return {"deleted": True, "sessionId": session_id}
 
 
-# ============ Phase 9: Audio Lessons (ElevenLabs TTS) ============
+# ============ Phase 9: Audio Lessons (Neural Voice TTS) ============
 
 
 @app.post("/tts/generate")
 async def tts_generate(req: TTSRequest) -> Response:
-    """Generate audio from text using ElevenLabs Bella voice. Returns MP3."""
+    """Generate crystal-clear neural audio from text using Microsoft Azure Neural TTS (Ava voice). Returns MP3."""
     from llm.tts import generate_speech
     try:
         audio = await generate_speech(req.text, req.maxChars)
@@ -766,7 +766,7 @@ async def tts_generate(req: TTSRequest) -> Response:
 
 @app.post("/tts/stream")
 async def tts_stream(req: TTSRequest):
-    """Stream TTS audio using ElevenLabs Bella voice. Returns chunked MP3 stream."""
+    """Stream neural TTS audio chunks using Ava voice. Returns chunked MP3 stream."""
     from llm.tts import stream_speech
     try:
         return StreamingResponse(

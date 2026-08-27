@@ -480,10 +480,10 @@ function OverviewTab({
 
             {/* Interactive Audio Player Controls */}
             <div className="flex items-center gap-2 flex-wrap">
-              {audioMode === "elevenlabs" && isPlaying && (
+              {isPlaying && (
                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-mono border border-emerald-200">
                   <Radio className="h-3 w-3 animate-pulse text-emerald-600" />
-                  <span>Bella Voice</span>
+                  <span>Neural Voice</span>
                 </div>
               )}
 
@@ -510,17 +510,17 @@ function OverviewTab({
                 {audioLoading ? (
                   <>
                     <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-600 border-t-transparent" />
-                    <span>Synthesizing Bella…</span>
+                    <span>Synthesizing Voice…</span>
                   </>
                 ) : isPlaying ? (
                   <>
                     <Pause className="h-3.5 w-3.5 text-white" />
-                    <span>Pause Audio</span>
+                    <span>Pause Lesson</span>
                   </>
                 ) : (
                   <>
                     <Volume2 className="h-3.5 w-3.5 text-slate-700" />
-                    <span>Listen (Bella AI Voice)</span>
+                    <span>Listen (Neural Voice)</span>
                   </>
                 )}
               </button>

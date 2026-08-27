@@ -483,7 +483,7 @@ export async function deleteSession(sessionId: string): Promise<boolean> {
   }
 }
 
-/* ============ Phase 9: Audio Lessons (ElevenLabs TTS) ============ */
+/* ============ Phase 9: Audio Lessons (Neural Voice TTS) ============ */
 
 export async function generateTTSAudio(text: string, maxChars = 5000): Promise<Blob> {
   const res = await fetch(`${AGENT_API_URL}/tts/generate`, {
