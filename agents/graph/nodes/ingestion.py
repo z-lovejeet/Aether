@@ -327,12 +327,14 @@ async def ingestion_agent(state: dict) -> dict:
                 "sourceMeta": {**meta, "ocr_confidence": confidence},
             }
 
-    # ---- Groq cleanup pass (restore structure; preserve language) ----
-    from llm.groq import cleanup_text
-
-    cleaned = await cleanup_text(_sanitize(raw), language_hint)
-    if not cleaned.strip():
+    # ---- Groq cleanup pass (restore structure for OCR/transcripts; skip if already structured) ----
+    if meta.get("expanded_from_topic") or (src_type == "text" and "\n#" in raw):
         cleaned = raw
+    else:
+        from llm.groq import cleanup_text
+        cleaned = await cleanup_text(_sanitize(raw), language_hint)
+        if not cleaned.strip():
+            cleaned = raw
 
     result_meta = {
         **meta,
