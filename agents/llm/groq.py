@@ -1,7 +1,8 @@
-"""Groq wrapper — fast cleanup pass (docs/05a §Tools & Pipeline).
+"""Groq wrapper — fast parallel text and JSON generation (docs/05a §Tools & Pipeline).
 
-cleanup_text(raw, language) restores structure as clean markdown.
-Fallback: Gemini text generation if Groq is unavailable (blueprint §6).
+Distributes parallel agents across distinct Groq models (gpt-oss-120b, gpt-oss-20b, qwen3.8-27b)
+to maximize throughput and prevent token-per-minute (TPM) bottlenecking.
+Fallback: Gemini 3.6 Flash if Groq is unavailable.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ CLEANUP_SYSTEM_PROMPT = (
 )
 
 
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=8)
 def _get_groq(model: str):
     from langchain_groq import ChatGroq
 
@@ -31,45 +32,61 @@ def _get_groq(model: str):
         raise RuntimeError("GROQ_API_KEY missing from agents/.env")
     return ChatGroq(
         model=model,
-        temperature=0.0,
-        max_tokens=4096,  # free-tier TPM cap is 8k; keep request well under it
-        timeout=25,
+        temperature=0.1,
+        max_tokens=3000,
+        timeout=15,
     )
 
 
-# Fallback chain: qwen3.8-27b (fastest, high TPM) -> gpt-oss-20b -> gpt-oss-120b
+@lru_cache(maxsize=8)
+def _get_groq_json(model: str):
+    from langchain_groq import ChatGroq
+
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY missing from agents/.env")
+    return ChatGroq(
+        model=model,
+        temperature=0.1,
+        max_tokens=3000,
+        timeout=15,
+        model_kwargs={"response_format": {"type": "json_object"}},
+    )
+
+
+# Active fast Groq models (high TPM, sub-second latency)
 GROQ_FALLBACK_CHAIN = [
-    "qwen/qwen3.8-27b",
+    "openai/gpt-oss-120b",
     "openai/gpt-oss-20b",
-    "qwen/qwen3.6-27b",
+    "qwen/qwen3.8-27b",
 ]
 
 
-def _model_chain() -> list[str]:
-    """Primary model from env (default gpt-oss-120b), then fallbacks."""
-    primary = os.environ.get("GROQ_MODEL") or GROQ_FALLBACK_CHAIN[0]
+def _model_chain(preferred_model: str | None = None) -> list[str]:
+    """Return model chain prioritized by preferred model or env default."""
+    primary = preferred_model or os.environ.get("GROQ_MODEL") or GROQ_FALLBACK_CHAIN[0]
     return [primary] + [m for m in GROQ_FALLBACK_CHAIN if m != primary]
 
 
-async def _groq_generate(system: str, user: str) -> str:
+async def _groq_generate(system: str, user: str, preferred_model: str | None = None) -> str:
     from langchain_core.messages import HumanMessage, SystemMessage
 
     last_err: Exception | None = None
-    for model in _model_chain():
+    for model in _model_chain(preferred_model):
         try:
             resp = await asyncio.to_thread(
                 _get_groq(model).invoke,
                 [SystemMessage(content=system), HumanMessage(content=user)],
             )
             return str(resp.content)
-        except Exception as err:  # noqa: BLE001
+        except Exception as err:
             last_err = err
             print(f"[groq] {model} failed ({type(err).__name__}), trying next…")
     raise last_err or RuntimeError("all Groq models failed")
 
 
 async def _gemini_text_fallback(system: str, user: str) -> str:
-    from .gemini import _generate  # walks its own 4-model chain
+    from .gemini import _generate
 
     return await _generate([system + "\n\n" + user])
 
@@ -82,46 +99,23 @@ async def cleanup_text(raw_text: str, language_hint: str = "") -> str:
         f"Original language: {language_hint or 'auto-detect (preserve it)'}\n\n"
         f"RAW TEXT:\n\"\"\"\n{raw_text}\n\"\"\""
     )
-    last_err: Exception | None = None
-    for attempt in range(2):
+    try:
+        return await _groq_generate(CLEANUP_SYSTEM_PROMPT, user_payload, preferred_model="openai/gpt-oss-20b")
+    except Exception:
         try:
-            return await _groq_generate(CLEANUP_SYSTEM_PROMPT, user_payload)
-        except Exception as err:  # Groq down/rate-limited -> fallback chain
-            last_err = err
-            await asyncio.sleep(1.0 * (attempt + 1))
-            try:
-                return await _gemini_text_fallback(CLEANUP_SYSTEM_PROMPT, user_payload)
-            except Exception as err2:  # noqa: BLE001
-                last_err = err2
-    # absolute last resort: return raw text — pipeline can still continue
-    print(f"[groq] cleanup failed, returning raw text ({last_err})")
-    return raw_text
+            return await _gemini_text_fallback(CLEANUP_SYSTEM_PROMPT, user_payload)
+        except Exception:
+            return raw_text
 
 
-@lru_cache(maxsize=4)
-def _get_groq_json(model: str):
-    from langchain_groq import ChatGroq
-
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
-        raise RuntimeError("GROQ_API_KEY missing from agents/.env")
-    return ChatGroq(
-        model=model,
-        temperature=0.0,
-        max_tokens=4096,
-        timeout=25,
-        model_kwargs={"response_format": {"type": "json_object"}},
-    )
-
-
-async def generate_json(system: str, user: str) -> str:
+async def generate_json(system: str, user: str, preferred_model: str | None = None) -> str:
     """Generic fast JSON-mode generation with native JSON schema enforcement."""
     from langchain_core.messages import HumanMessage, SystemMessage
 
     sys_prompt = system + "\nReturn ONLY valid, parseable JSON matching the requested schema."
     last_err: Exception | None = None
 
-    for model in _model_chain():
+    for model in _model_chain(preferred_model):
         try:
             client = _get_groq_json(model)
             resp = await asyncio.to_thread(
@@ -141,4 +135,3 @@ async def generate_json(system: str, user: str) -> str:
         print(f"[gemini] JSON fallback failed: {gemini_err}")
 
     raise last_err or RuntimeError("All JSON generation backends failed")
-

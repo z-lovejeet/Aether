@@ -138,7 +138,7 @@ async def flashcard_smith(state: dict) -> dict:
     flashcards: list[dict] = []
     for attempt in range(2):
         try:
-            raw_json = await generate_json(system, user_payload)
+            raw_json = await generate_json(system, user_payload, preferred_model="openai/gpt-oss-120b")
             parsed = parse_json_safe(raw_json)
             flashcards = _validate_flashcards(parsed)
             if flashcards:
@@ -146,7 +146,7 @@ async def flashcard_smith(state: dict) -> dict:
         except Exception as err:
             print(f"[flashcard_smith] attempt {attempt + 1} failed: {err}")
             if attempt == 0:
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(0.2)
 
     # Fallback: generate simple cards from keyFacts
     if not flashcards:

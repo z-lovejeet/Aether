@@ -302,17 +302,17 @@ async def ingestion_agent(state: dict) -> dict:
             "sourceMeta": meta,
         }
 
-    # If the user supplied a concise prompt or short topic (e.g. "Agile development"),
+    # If the user supplied a very short topic or keyword query (e.g. "Agile methodology" < 12 words),
     # expand it into a comprehensive foundational study chapter automatically!
-    if len(raw.split()) < MIN_WORDS:
-        print(f"[ingestion] Short input detected ({len(raw.split())} words) — expanding into comprehensive study material…")
+    if len(raw.split()) < 12:
+        print(f"[ingestion] Short topic detected ({len(raw.split())} words) — expanding into comprehensive study material…")
         expanded = await _expand_topic_to_study_material(
             topic=raw,
             subject=subject,
             level=level,
             language_hint=language_hint,
         )
-        if len(expanded.split()) >= 50:
+        if len(expanded.split()) >= 30:
             raw = expanded
             meta["expanded_from_topic"] = True
             confidence = 1.0
@@ -327,14 +327,15 @@ async def ingestion_agent(state: dict) -> dict:
                 "sourceMeta": {**meta, "ocr_confidence": confidence},
             }
 
-    # ---- Groq cleanup pass (restore structure for OCR/transcripts; skip if already structured) ----
-    if meta.get("expanded_from_topic") or (src_type == "text" and "\n#" in raw):
-        cleaned = raw
+    # ---- Fast markdown normalization ----
+    # If already user text or expanded topic, skip slow LLM cleanup pass for 0ms latency!
+    if src_type == "text" or meta.get("expanded_from_topic") or len(raw) > 200:
+        cleaned = _sanitize(raw)
     else:
         from llm.groq import cleanup_text
         cleaned = await cleanup_text(_sanitize(raw), language_hint)
         if not cleaned.strip():
-            cleaned = raw
+            cleaned = _sanitize(raw)
 
     result_meta = {
         **meta,

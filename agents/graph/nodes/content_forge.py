@@ -124,7 +124,7 @@ async def content_forge(state: dict) -> dict:
 
     async def _gen_explainer() -> str:
         try:
-            return await _groq_generate(system, user_payload)
+            return await _groq_generate(system, user_payload, preferred_model="openai/gpt-oss-120b")
         except Exception:
             try:
                 return await _gemini_text_fallback(system, user_payload)
@@ -133,9 +133,9 @@ async def content_forge(state: dict) -> dict:
                 return cleaned
 
     async def _gen_cheatsheet() -> str:
-        cs_payload = f"CONCEPT OUTLINE:\n{concept_outline}\n\nKEY MATERIAL:\n\"\"\"\n{cleaned[:12000]}\n\"\"\""
+        cs_payload = f"CONCEPT OUTLINE:\n{concept_outline}\n\nKEY MATERIAL:\n\"\"\"\n{cleaned[:8000]}\n\"\"\""
         try:
-            return await _groq_generate(CHEATSHEET_SYSTEM, cs_payload)
+            return await _groq_generate(CHEATSHEET_SYSTEM, cs_payload, preferred_model="openai/gpt-oss-20b")
         except Exception:
             try:
                 return await _gemini_text_fallback(CHEATSHEET_SYSTEM, cs_payload)

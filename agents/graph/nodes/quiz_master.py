@@ -170,7 +170,7 @@ async def quiz_master(state: dict) -> dict:
 
     for attempt in range(2):
         try:
-            raw_json = await generate_json(system, user_payload)
+            raw_json = await generate_json(system, user_payload, preferred_model="openai/gpt-oss-20b")
             parsed = parse_json_safe(raw_json)
             quiz_items = _validate_quiz_items(parsed, concept_ids)
             if quiz_items:
@@ -178,7 +178,7 @@ async def quiz_master(state: dict) -> dict:
         except Exception as err:
             print(f"[quiz_master] attempt {attempt + 1} failed: {err}")
             if attempt == 0:
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(0.2)
 
     # Fallback: generate simple recall questions from keyFacts
     if not quiz_items:

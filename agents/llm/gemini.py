@@ -21,10 +21,8 @@ load_dotenv(".env.local")
 
 _client: genai.Client | None = None
 
-# Fallback chain: 3.5 flash-lite (<2s) -> 3.5 -> 3.6 -> 3.7
+# Active valid Gemini models: 3.6-flash (fast, primary) -> 3.7-flash
 GEMINI_FALLBACK_CHAIN = [
-    "gemini-3.5-flash-lite",
-    "gemini-3.5-flash",
     "gemini-3.6-flash",
     "gemini-3.7-flash",
 ]
@@ -41,7 +39,7 @@ def _get_client() -> genai.Client:
 
 
 def _model_chain() -> list[str]:
-    """Primary model from env (default 3.7-flash), then the fallback ladder."""
+    """Primary model from env (default gemini-3.6-flash), then the fallback ladder."""
     primary = os.environ.get("GEMINI_MODEL") or GEMINI_FALLBACK_CHAIN[0]
     return [primary] + [m for m in GEMINI_FALLBACK_CHAIN if m != primary]
 
@@ -55,7 +53,7 @@ async def _generate(parts: list[gtypes.Part], json_mode: bool = False) -> str:
     )
     last_err: Exception | None = None
     for model in _model_chain():
-        for attempt in range(2):  # 2 tries per model before falling over
+        for attempt in range(2):
             try:
                 resp = await asyncio.to_thread(
                     client.models.generate_content,
@@ -67,9 +65,10 @@ async def _generate(parts: list[gtypes.Part], json_mode: bool = False) -> str:
                 if not text.strip():
                     raise ValueError("empty response")
                 return text
-            except Exception as err:  # noqa: BLE001 - upstream may raise anything
+            except Exception as err:
                 last_err = err
-                await asyncio.sleep(1.0 * (attempt + 1))
+                if attempt == 0:
+                    await asyncio.sleep(0.3)
         print(f"[gemini] {model} exhausted, falling back…")
     raise RuntimeError(f"All Gemini models failed: {last_err}")
 

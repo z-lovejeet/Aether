@@ -133,7 +133,11 @@ async def _generate_tree(cleaned: str, level: str, goal: str, extra_hint: str = 
         (f"NOTE: {extra_hint}\n\n" if extra_hint else "")
         + f"LEARNER LEVEL: {level}\nGOAL: {goal}\n\nMATERIAL:\n\"\"\"\n{cleaned[:20000]}\n\"\"\""
     )
-    raw = await generate_json(SYSTEM_PROMPT.format(level=level, goal=goal), user_payload)
+    raw = await generate_json(
+        SYSTEM_PROMPT.format(level=level, goal=goal),
+        user_payload,
+        preferred_model="openai/gpt-oss-120b",
+    )
     return parse_json_safe(raw)
 
 
