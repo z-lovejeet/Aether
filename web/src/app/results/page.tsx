@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/glass/LiquidGlassCard";
 import { LiquidGlassButton } from "@/components/glass/LiquidGlassButton";
+import { EmptyState } from "@/components/app/EmptyState";
 import { deleteSession, deleteMaterial, getMaterials } from "@/lib/agent-client";
 
 interface SavedSystem {
@@ -322,17 +323,14 @@ export default function ResultsPage() {
 
         {/* ─── Systems Grid ─── */}
         {filteredSystems.length === 0 ? (
-          <div className="mt-12 rounded-3xl border border-dashed border-slate-200 p-12 text-center bg-slate-50/50">
-            <Layers className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-            <h3 className="font-display text-base font-bold text-slate-800">No study systems found</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-5">
-              {searchQuery ? "Try adjusting your search filters or create a new set." : "Upload your first study material to generate an active study system."}
-            </p>
-            <Link href="/upload">
-              <LiquidGlassButton size="sm" icon={<Plus className="h-3.5 w-3.5" />}>
-                Upload Material
-              </LiquidGlassButton>
-            </Link>
+          <div className="mt-8">
+            <EmptyState
+              icon={<Layers className="h-6 w-6 text-indigo-600" />}
+              title="No Study Systems Found"
+              description={searchQuery ? "Try adjusting your search query or filters." : "Your first system is sixty seconds away."}
+              actionHref="/upload"
+              actionLabel="Launch Studio"
+            />
           </div>
         ) : (
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

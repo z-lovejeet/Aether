@@ -22,8 +22,11 @@ import {
 import { LiquidGlassCard } from "@/components/glass/LiquidGlassCard";
 import { LiquidGlassButton } from "@/components/glass/LiquidGlassButton";
 import { MarkdownRenderer } from "@/components/markdown/MarkdownRenderer";
+import { XPBar } from "@/components/gamification/XPBar";
+import { fireConfetti, fireMilestoneConfetti } from "@/components/gamification/ConfettiBurst";
 import {
   generatePracticeQuestions,
+  awardXP,
   type GeneratedPracticeItemDto,
 } from "@/lib/agent-client";
 
@@ -55,6 +58,13 @@ export default function PracticeArenaPage() {
   const [score, setScore] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [recentGain, setRecentGain] = useState<number | null>(null);
+
+  function triggerGain(pts: number) {
+    setRecentGain(pts);
+    awardXP(pts, "practice_arena").catch(() => {});
+    setTimeout(() => setRecentGain(null), 1500);
+  }
 
   // Switch between "config" and "practice" views
   const isPracticeMode = questions.length > 0;
@@ -112,11 +122,15 @@ export default function PracticeArenaPage() {
       const answerLetter = currentQ.answer?.trim().substring(0, 1).toUpperCase();
       if (chosenLetter && answerLetter && chosenLetter === answerLetter) {
         setScore((s) => s + 1);
+        fireConfetti({ particleCount: 45, spread: 60 });
+        triggerGain(10);
       }
     } else {
       // For short/explain answers, give credit if student provided substantial response
       if (shortAnswer.trim().length > 15) {
         setScore((s) => s + 1);
+        fireConfetti({ particleCount: 45, spread: 60 });
+        triggerGain(10);
       }
     }
   }
@@ -132,6 +146,8 @@ export default function PracticeArenaPage() {
     } else {
       // Finished all questions
       setCurrentIndex(questions.length);
+      fireMilestoneConfetti();
+      triggerGain(30);
     }
   }
 
@@ -149,20 +165,26 @@ export default function PracticeArenaPage() {
   const isFinished = isPracticeMode && currentIndex >= questions.length;
 
   return (
-    <main className="relative min-h-screen px-4 pb-24 sm:px-8">
-      <div className="mx-auto max-w-4xl pt-4 sm:pt-8">
-        {/* Top Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-900 text-white text-xs font-semibold mb-3 shadow-xs">
-            <Cpu className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Groq LPU Active Recall Arena</span>
+    <main className="relative min-h-screen px-3 sm:px-8 pb-24">
+      <div className="mx-auto max-w-4xl pt-3 sm:pt-6">
+        {/* Top Header with XP Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-5 mb-8">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 text-white text-xs font-semibold mb-2 shadow-xs">
+              <Cpu className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Groq LPU Active Recall Arena</span>
+            </div>
+            <h1 className="display text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Targeted Deliberate Practice
+            </h1>
+            <p className="mt-1 text-xs text-slate-500 max-w-md">
+              Exam-calibrated question sets on any topic with instant step-by-step AI feedback.
+            </p>
           </div>
-          <h1 className="display text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Targeted Deliberate Practice
-          </h1>
-          <p className="mx-auto mt-2 max-w-lg text-sm text-slate-600">
-            Generate custom exam-calibrated question sets on any subject or specific topic with instant step-by-step AI feedback.
-          </p>
+
+          <div>
+            <XPBar recentGain={recentGain} />
+          </div>
         </div>
 
         {/* ─── Error Notification ─── */}

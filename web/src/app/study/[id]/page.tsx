@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen,
   Target,
@@ -14,6 +14,7 @@ import {
   BarChart3,
   Volume2,
   Pause,
+  Play,
   RotateCw,
   CheckCircle2,
   AlertTriangle,
@@ -24,13 +25,17 @@ import {
   ArrowRight,
   ArrowLeft,
   Zap,
-  MessageCircle,
+  Radio,
+  Gauge,
 } from "lucide-react";
 import ChatDrawer from "@/components/chat/ChatDrawer";
 import { LiquidGlassCard } from "@/components/glass/LiquidGlassCard";
 import { LiquidGlassButton } from "@/components/glass/LiquidGlassButton";
 import { LiquidGlassBadge } from "@/components/glass/LiquidGlassBadge";
 import { MarkdownRenderer } from "@/components/markdown/MarkdownRenderer";
+import { XPBar } from "@/components/gamification/XPBar";
+import { fireConfetti, fireMilestoneConfetti } from "@/components/gamification/ConfettiBurst";
+import { EmptyState } from "@/components/app/EmptyState";
 import type {
   ConceptNodeDto,
   GeneratedAssetsDto,
@@ -41,7 +46,14 @@ import type {
   RemediationCheckResultDto,
   ProgressDto,
 } from "@/lib/agent-client";
-import { submitAnswer, checkRemediation, getProgress } from "@/lib/agent-client";
+import {
+  submitAnswer,
+  checkRemediation,
+  getProgress,
+  generateTTSAudio,
+  getUserStats,
+  awardXP,
+} from "@/lib/agent-client";
 
 /* SSR-safe dynamic import for React Flow */
 const MindMapView = dynamic(() => import("@/components/mindmap/MindMapView"), {
@@ -84,6 +96,11 @@ export default function StudyPage() {
   const [loading, setLoading] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
 
+  // Gamification state
+  const [userXP, setUserXP] = useState<number | undefined>(undefined);
+  const [userStreak, setUserStreak] = useState<number | undefined>(undefined);
+  const [recentGain, setRecentGain] = useState<number | null>(null);
+
   useEffect(() => {
     if (!sessionId) return;
     const raw = sessionStorage.getItem(`study:${sessionId}`) || sessionStorage.getItem(`ingest:${sessionId}`);
@@ -95,7 +112,23 @@ export default function StudyPage() {
       }
     }
     setLoading(false);
+
+    // Initial stats fetch
+    getUserStats()
+      .then((s) => {
+        if (s && s.xp >= 0) {
+          setUserXP(s.xp);
+          setUserStreak(s.streak);
+        }
+      })
+      .catch(() => {});
   }, [sessionId]);
+
+  function triggerXPGain(points: number) {
+    setRecentGain(points);
+    setUserXP((prev) => (prev !== undefined ? prev + points : points));
+    setTimeout(() => setRecentGain(null), 1500);
+  }
 
   if (loading) {
     return (
@@ -108,29 +141,20 @@ export default function StudyPage() {
 
   if (!data) {
     return (
-      <main className="relative min-h-[80vh] flex flex-col items-center justify-center px-6 text-center">
-        <LiquidGlassCard depth="medium" className="max-w-md p-8 border-slate-200 bg-white shadow-md">
-          <div className="flex justify-center mb-3">
-            <AlertTriangle className="h-8 w-8 text-amber-500" />
-          </div>
-          <h2 className="display text-2xl font-bold text-slate-900">Study Hub Not Found</h2>
-          <p className="mt-2 text-xs text-slate-500">
-            No active session data was found in local storage for this ID.
-          </p>
-          <div className="mt-6 flex justify-center gap-3">
-            <Link href="/upload">
-              <LiquidGlassButton size="sm" icon={<Zap className="h-3.5 w-3.5" />}>
-                Launch Studio
-              </LiquidGlassButton>
-            </Link>
-          </div>
-        </LiquidGlassCard>
+      <main className="relative min-h-[80vh] flex flex-col items-center justify-center px-4 sm:px-6 text-center">
+        <EmptyState
+          icon={<AlertTriangle className="h-6 w-6 text-amber-500" />}
+          title="Study Hub Not Found"
+          description="No active session data was found in local storage for this ID."
+          actionHref="/upload"
+          actionLabel="Launch Studio"
+        />
       </main>
     );
   }
 
   const { generatedAssets, conceptTree = [], subject = "General", level = "intermediate" } = data;
-  
+
   const rawQuizItems = generatedAssets.quizItems ?? [];
   const quizItems: QuizItemDto[] = rawQuizItems.length > 0
     ? rawQuizItems
@@ -161,16 +185,16 @@ export default function StudyPage() {
       }));
 
   return (
-    <main className="relative min-h-screen px-4 pb-24 sm:px-8">
+    <main className="relative min-h-screen px-3 sm:px-8 pb-24">
       <div className="mx-auto max-w-5xl pt-2 sm:pt-6">
-        {/* Top Header Card */}
+        {/* Top Header Card with XP Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-5">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <LiquidGlassBadge variant="indigo" size="sm">{subject}</LiquidGlassBadge>
               <LiquidGlassBadge variant="neutral" size="sm" className="capitalize">{level} Level</LiquidGlassBadge>
             </div>
-            <h1 className="display text-2xl sm:text-3xl font-extrabold text-slate-900">
+            <h1 className="display text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
               {conceptTree[0]?.name ? `${conceptTree[0].name} Hub` : "Personalized Study Hub"}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -178,15 +202,18 @@ export default function StudyPage() {
             </p>
           </div>
 
-          <Link href="/upload">
-            <LiquidGlassButton variant="secondary" size="sm" icon={<RotateCw className="h-3.5 w-3.5" />}>
-              New Material
-            </LiquidGlassButton>
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <XPBar currentXP={userXP} currentStreak={userStreak} recentGain={recentGain} />
+            <Link href="/upload" data-no-print>
+              <LiquidGlassButton variant="secondary" size="sm" icon={<RotateCw className="h-3.5 w-3.5" />}>
+                New Material
+              </LiquidGlassButton>
+            </Link>
+          </div>
         </div>
 
-        {/* 6-Tab Navigation Dock */}
-        <div className="mt-5 flex flex-wrap gap-1.5">
+        {/* 6-Tab Navigation Dock — Mobile scrollable */}
+        <div className="mt-5 flex overflow-x-auto pb-1.5 pt-0.5 gap-1.5 scrollbar-none" data-no-print>
           {TABS.map((t) => {
             const Icon = t.icon;
             const isActive = tab === t.id;
@@ -200,7 +227,7 @@ export default function StudyPage() {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                className={`flex shrink-0 items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${
                   isActive
                     ? "bg-slate-900 text-white shadow-sm"
                     : "bg-white/80 text-slate-600 hover:text-slate-900 border border-slate-200/90 hover:bg-slate-50"
@@ -238,6 +265,7 @@ export default function StudyPage() {
               quizItems={quizItems}
               conceptTree={conceptTree}
               onReviewFlashcards={() => setTab("flashcards")}
+              onXPGain={triggerXPGain}
             />
           )}
 
@@ -274,6 +302,7 @@ export default function StudyPage() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setChatOpen(true)}
+          data-no-print
           className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-xl hover:bg-slate-800 transition-all border border-slate-700/80 cursor-pointer"
         >
           <Sparkles className="h-4 w-4 text-amber-300" />
@@ -297,7 +326,7 @@ export default function StudyPage() {
 }
 
 /* =========================================================================
-   TAB 1: Overview Tab (Personalized Explainer + TTS Audio)
+   TAB 1: Overview Tab (Personalized Explainer + ElevenLabs Bella Voice TTS)
    ========================================================================= */
 
 function OverviewTab({
@@ -310,62 +339,223 @@ function OverviewTab({
   onNavigateToQuiz: () => void;
 }) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(true);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(0);
+  const [audioMode, setAudioMode] = useState<"elevenlabs" | "webspeech">("elevenlabs");
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Clean up audio blob URL on unmount
   useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      setSpeechSupported(false);
-    }
-  }, []);
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [audioUrl]);
 
-  function toggleAudio() {
+  // Fallback to Web Speech API
+  function playWebSpeech() {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const textToRead = explainerMd.replace(/[#*`_\[\]]/g, "").slice(0, 2500);
+    const utter = new SpeechSynthesisUtterance(textToRead);
+    utter.rate = playbackSpeed;
+
+    // Pick best available natural voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const naturalVoice = voices.find(
+      (v) =>
+        v.name.includes("Natural") ||
+        v.name.includes("Samantha") ||
+        v.name.includes("Google US English") ||
+        (v.lang.startsWith("en") && v.name.includes("Female")),
+    );
+    if (naturalVoice) utter.voice = naturalVoice;
+
+    utter.onend = () => setIsPlaying(false);
+    utter.onerror = () => setIsPlaying(false);
+    window.speechSynthesis.speak(utter);
+    setAudioMode("webspeech");
+    setIsPlaying(true);
+  }
+
+  async function toggleAudio() {
     if (isPlaying) {
-      window.speechSynthesis.cancel();
+      if (audioMode === "elevenlabs" && audioRef.current) {
+        audioRef.current.pause();
+      } else if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
       setIsPlaying(false);
-    } else {
-      window.speechSynthesis.cancel();
-      const textToRead = explainerMd.replace(/[#*`_\[\]]/g, "").slice(0, 1500);
-      const utter = new SpeechSynthesisUtterance(textToRead);
-      utter.rate = 1.0;
-      utter.onend = () => setIsPlaying(false);
-      utter.onerror = () => setIsPlaying(false);
-      window.speechSynthesis.speak(utter);
-      setIsPlaying(true);
+      return;
     }
+
+    // If we already have the generated ElevenLabs audio blob
+    if (audioUrl && audioRef.current) {
+      audioRef.current.playbackRate = playbackSpeed;
+      audioRef.current.play();
+      setIsPlaying(true);
+      return;
+    }
+
+    // Otherwise, generate audio from ElevenLabs API
+    setAudioLoading(true);
+    try {
+      const blob = await generateTTSAudio(explainerMd, 4000);
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+      setAudioMode("elevenlabs");
+
+      const audio = new Audio(url);
+      audio.playbackRate = playbackSpeed;
+      audioRef.current = audio;
+
+      audio.ontimeupdate = () => {
+        setCurrentTime(audio.currentTime);
+      };
+      audio.onloadedmetadata = () => {
+        setDuration(audio.duration);
+      };
+      audio.onended = () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+      };
+      audio.onerror = () => {
+        console.warn("ElevenLabs audio element playback error. Falling back to Web Speech.");
+        playWebSpeech();
+      };
+
+      await audio.play();
+      setIsPlaying(true);
+    } catch (err) {
+      console.warn("ElevenLabs TTS generation failed or quota exceeded. Using Web Speech API fallback:", err);
+      playWebSpeech();
+    } finally {
+      setAudioLoading(false);
+    }
+  }
+
+  function toggleSpeed() {
+    const speeds = [1.0, 1.25, 1.5, 2.0];
+    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
+    const nextSpeed = speeds[nextIdx];
+    setPlaybackSpeed(nextSpeed);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = nextSpeed;
+    }
+  }
+
+  function handleSeek(e: React.ChangeEvent<HTMLInputElement>) {
+    const target = parseFloat(e.target.value);
+    setCurrentTime(target);
+    if (audioRef.current) {
+      audioRef.current.currentTime = target;
+    }
+  }
+
+  function formatTime(sec: number) {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
   }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
       {/* Main Explainer Prose */}
       <div className="lg:col-span-2 space-y-5">
-        <LiquidGlassCard depth="medium" className="p-7 sm:p-9 border-slate-200/90 bg-white/95 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+        <LiquidGlassCard depth="medium" className="p-6 sm:p-9 border-slate-200/90 bg-white/95 shadow-sm">
+          {/* Header & TTS Control Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-indigo-600" />
               <h2 className="font-display text-lg font-bold text-slate-900">Personalized Explainer</h2>
             </div>
 
-            {speechSupported && (
+            {/* Interactive Audio Player Controls */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {audioMode === "elevenlabs" && isPlaying && (
+                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-mono border border-emerald-200">
+                  <Radio className="h-3 w-3 animate-pulse text-emerald-600" />
+                  <span>Bella Voice</span>
+                </div>
+              )}
+
+              {audioUrl && (
+                <button
+                  onClick={toggleSpeed}
+                  title="Change playback speed"
+                  className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-mono font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/90 transition-all cursor-pointer"
+                >
+                  <Gauge className="h-3 w-3" />
+                  <span>{playbackSpeed}x</span>
+                </button>
+              )}
+
               <button
                 onClick={toggleAudio}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border transition-all ${
+                disabled={audioLoading}
+                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-all cursor-pointer shadow-sm ${
                   isPlaying
                     ? "bg-slate-900 text-white border-slate-900"
                     : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                 }`}
               >
-                {isPlaying ? <Pause className="h-3.5 w-3.5 text-white" /> : <Volume2 className="h-3.5 w-3.5 text-slate-600" />}
-                <span>{isPlaying ? "Pause Lesson" : "Listen (Spoken)"}</span>
+                {audioLoading ? (
+                  <>
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-600 border-t-transparent" />
+                    <span>Synthesizing Bella…</span>
+                  </>
+                ) : isPlaying ? (
+                  <>
+                    <Pause className="h-3.5 w-3.5 text-white" />
+                    <span>Pause Audio</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="h-3.5 w-3.5 text-slate-700" />
+                    <span>Listen (Bella AI Voice)</span>
+                  </>
+                )}
               </button>
-            )}
+            </div>
           </div>
 
+          {/* Audio Seekbar (if audio loaded) */}
+          {audioUrl && duration > 0 && (
+            <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center gap-3">
+              <button
+                onClick={toggleAudio}
+                className="h-7 w-7 rounded-full bg-slate-900 text-white flex items-center justify-center shrink-0"
+              >
+                {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3 ml-0.5" />}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={duration || 100}
+                value={currentTime}
+                onChange={handleSeek}
+                className="w-full accent-slate-900 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+              />
+              <span className="text-[11px] font-mono text-slate-500 shrink-0">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
+            </div>
+          )}
+
+          {/* Explainer Markdown Body */}
           <div className="mt-5">
             <MarkdownRenderer content={explainerMd} />
           </div>
 
-          <div className="mt-8 pt-5 border-t border-slate-100 flex justify-between items-center">
+          <div className="mt-8 pt-5 border-t border-slate-100 flex justify-between items-center" data-no-print>
             <span className="text-xs text-slate-500">Ready to test retention?</span>
             <LiquidGlassButton onClick={onNavigateToQuiz} size="sm" icon={<Target className="h-3.5 w-3.5" />}>
               Start Quiz →
@@ -410,7 +600,7 @@ function OverviewTab({
 }
 
 /* =========================================================================
-   TAB 2: Quiz Tab (Adaptive Runner + Remediation Coach Ladder)
+   TAB 2: Quiz Tab (Adaptive Runner + Remediation Coach + Gamification)
    ========================================================================= */
 
 function QuizTab({
@@ -418,11 +608,13 @@ function QuizTab({
   quizItems,
   conceptTree,
   onReviewFlashcards,
+  onXPGain,
 }: {
   sessionId: string;
   quizItems: QuizItemDto[];
   conceptTree: ConceptNodeDto[];
   onReviewFlashcards: () => void;
+  onXPGain?: (points: number) => void;
 }) {
   const [index, setIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -440,11 +632,13 @@ function QuizTab({
 
   if (quizItems.length === 0) {
     return (
-      <LiquidGlassCard depth="medium" className="p-8 text-center max-w-lg mx-auto bg-white">
-        <Target className="h-8 w-8 text-slate-400 mx-auto mb-3" />
-        <h3 className="font-display text-lg font-bold text-slate-900">Generating Quiz Questions…</h3>
-        <p className="text-xs text-slate-500 mt-1">Quiz items are being forged for this study set.</p>
-      </LiquidGlassCard>
+      <EmptyState
+        icon={<Target className="h-6 w-6 text-indigo-600" />}
+        title="Generating Quiz Questions…"
+        description="Quiz items are being forged for this study set."
+        actionHref="/upload"
+        actionLabel="Studio"
+      />
     );
   }
 
@@ -458,6 +652,10 @@ function QuizTab({
       setGradeResult(res.grade);
       if (res.grade.verdict === "correct") {
         setScore((s) => s + 1);
+        fireConfetti({ particleCount: 50, spread: 60 });
+        onXPGain?.(10);
+      } else if (res.grade.verdict === "partial") {
+        onXPGain?.(5);
       }
       if (res.remediation) {
         setRemediationStep(res.remediation);
@@ -471,7 +669,11 @@ function QuizTab({
         misconception: isCorrect ? null : { type: "recall_gap", evidenceQuote: responseText },
         feedbackMd: isCorrect ? "Correct! Well done." : `Expected: ${currentQ.answer}`,
       });
-      if (isCorrect) setScore((s) => s + 1);
+      if (isCorrect) {
+        setScore((s) => s + 1);
+        fireConfetti({ particleCount: 50, spread: 60 });
+        onXPGain?.(10);
+      }
     } finally {
       setGrading(false);
     }
@@ -495,6 +697,8 @@ function QuizTab({
       setRemediationResult(res);
       if (res.passed) {
         setScore((s) => s + 1);
+        fireMilestoneConfetti();
+        onXPGain?.(25);
       } else if (res.nextStep) {
         setRemediationStep(res.nextStep);
         if (res.nextStep.strategy) {
@@ -508,6 +712,8 @@ function QuizTab({
         rescued: true,
         feedbackMd: "Concept rescued! Keep pushing forward.",
       });
+      fireMilestoneConfetti();
+      onXPGain?.(25);
     } finally {
       setRemediationChecking(false);
     }
@@ -541,7 +747,7 @@ function QuizTab({
       </div>
 
       {/* Main Question Card */}
-      <LiquidGlassCard depth="medium" className="p-7 sm:p-9 border-slate-200/90 bg-white/95 shadow-sm">
+      <LiquidGlassCard depth="medium" className="p-6 sm:p-9 border-slate-200/90 bg-white/95 shadow-sm">
         <div className="flex justify-between items-center border-b border-slate-100 pb-3">
           <LiquidGlassBadge variant="indigo" size="sm">
             {isMcq ? "Multiple Choice" : "Short Answer"}
@@ -580,7 +786,7 @@ function QuizTab({
                   key={opt}
                   disabled={Boolean(gradeResult)}
                   onClick={() => setSelectedOption(opt)}
-                  className={`w-full text-left p-3.5 rounded-xl border transition-all text-xs sm:text-sm ${borderStyle}`}
+                  className={`w-full text-left p-3.5 rounded-xl border transition-all text-xs sm:text-sm cursor-pointer ${borderStyle}`}
                 >
                   {opt}
                 </button>
@@ -617,7 +823,7 @@ function QuizTab({
               {gradeResult.verdict === "correct" ? (
                 <>
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  <span>Correct! Understanding Verified</span>
+                  <span>Correct! Understanding Verified (+10 XP)</span>
                 </>
               ) : (
                 <>
@@ -686,7 +892,7 @@ function QuizTab({
           >
             <div className="flex items-center gap-2 font-display font-bold text-xs sm:text-sm">
               <Sparkles className="h-4 w-4 text-emerald-600" />
-              <span>Concept Rescued! Strategy Updated</span>
+              <span>Concept Rescued! Strategy Updated (+25 XP Bonus)</span>
             </div>
             <p className="text-xs mt-1 text-emerald-800">{remediationResult.feedbackMd}</p>
           </motion.div>
@@ -735,11 +941,13 @@ function FlashcardsTab({ flashcards }: { flashcards: FlashcardDto[] }) {
 
   if (flashcards.length === 0) {
     return (
-      <LiquidGlassCard depth="medium" className="p-8 text-center max-w-lg mx-auto bg-white">
-        <Layers className="h-8 w-8 text-slate-400 mx-auto mb-3" />
-        <h3 className="font-display text-lg font-bold text-slate-900">Generating Flashcards…</h3>
-        <p className="text-xs text-slate-500 mt-1">Flashcard deck is being forged.</p>
-      </LiquidGlassCard>
+      <EmptyState
+        icon={<Layers className="h-6 w-6 text-indigo-600" />}
+        title="Generating Flashcards…"
+        description="Flashcard deck is being forged for this study set."
+        actionHref="/upload"
+        actionLabel="Studio"
+      />
     );
   }
 
@@ -857,7 +1065,7 @@ function CheatSheetTab({ cheatSheetMd, subject }: { cheatSheetMd: string; subjec
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <LiquidGlassCard depth="medium" className="p-7 sm:p-9 border-slate-200/90 bg-white/95 shadow-sm">
+      <LiquidGlassCard depth="medium" className="p-6 sm:p-9 border-slate-200/90 bg-white/95 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
             <h2 className="font-display text-xl font-bold text-slate-900">{subject} Reference Sheet</h2>
@@ -866,17 +1074,17 @@ function CheatSheetTab({ cheatSheetMd, subject }: { cheatSheetMd: string; subjec
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" data-no-print>
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 hover:text-slate-900"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 hover:text-slate-900 cursor-pointer"
             >
               {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
               <span>{copied ? "Copied" : "Copy"}</span>
             </button>
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 text-xs font-semibold text-white shadow-sm hover:bg-slate-800"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 cursor-pointer"
             >
               <Printer className="h-3.5 w-3.5" />
               <span>Print</span>
@@ -921,11 +1129,13 @@ function ProgressTab({ materialId }: { materialId: string | undefined }) {
 
   if (!progress || progress.overallStats.totalConcepts === 0) {
     return (
-      <LiquidGlassCard depth="medium" className="p-8 text-center max-w-lg mx-auto bg-white">
-        <BarChart3 className="h-8 w-8 text-slate-400 mx-auto mb-3" />
-        <h3 className="font-display text-lg font-bold text-slate-900">No Progress Data Yet</h3>
-        <p className="text-xs text-slate-500 mt-1">Complete quizzes to unlock live mastery analytics.</p>
-      </LiquidGlassCard>
+      <EmptyState
+        icon={<BarChart3 className="h-6 w-6 text-indigo-600" />}
+        title="No Progress Data Yet"
+        description="Complete quizzes to unlock live mastery analytics and retention curves."
+        actionHref="/questions"
+        actionLabel="Practice Now"
+      />
     );
   }
 
