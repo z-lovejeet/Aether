@@ -21,12 +21,12 @@ load_dotenv(".env.local")
 
 _client: genai.Client | None = None
 
-# Fallback chain (user spec): 3.7 flash -> 3.6 -> 3.5 -> 3.5 lite
+# Fallback chain: 3.5 flash-lite (<2s) -> 3.5 -> 3.6 -> 3.7
 GEMINI_FALLBACK_CHAIN = [
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
 ]
 
 
@@ -57,8 +57,11 @@ async def _generate(parts: list[gtypes.Part], json_mode: bool = False) -> str:
     for model in _model_chain():
         for attempt in range(2):  # 2 tries per model before falling over
             try:
-                resp = await client.aio.models.generate_content(
-                    model=model, contents=parts, config=config
+                resp = await asyncio.to_thread(
+                    client.models.generate_content,
+                    model=model,
+                    contents=parts,
+                    config=config,
                 )
                 text = resp.text or ""
                 if not text.strip():
@@ -76,40 +79,25 @@ def _b64_part(data: bytes, mime: str) -> gtypes.Part:
 
 
 async def ocr_image(image_bytes: bytes, mime: str = "image/jpeg") -> tuple[str, float]:
-    """OCR a photo of a page. Returns (transcribed_text, confidence 0..1)."""
+    """OCR a photo of a page using direct Gemini Flash vision. Returns (transcribed_text, confidence 0..1)."""
     prompt = (
-        "Transcribe ALL text visible in this image of a study material page. "
-        "Preserve original language, headings, bullets and reading order. "
-        "Do not summarize, translate or add anything.\n"
-        'Reply ONLY as JSON: {"text": "...", "confidence": 0.0} '
-        "where confidence is your honest 0-1 estimate that the transcription "
-        "is complete and accurate."
+        "Transcribe ALL text, formulas, headings, bullet points, and code visible in this study material photo. "
+        "Preserve original language, LaTeX math equations (e.g. $...$ or $$...$$), and formatting. "
+        "Do not summarize or add commentary. Output clean structured markdown directly."
     )
-    raw = await _generate([_b64_part(image_bytes, mime), prompt], json_mode=True)
-    try:
-        parsed = json.loads(raw)
-        text = str(parsed.get("text", ""))
-        conf = max(0.0, min(1.0, float(parsed.get("confidence", 0.5))))
-    except json.JSONDecodeError:
-        text, conf = raw, 0.5
-    return text, conf
+    raw = await _generate([_b64_part(image_bytes, mime), prompt], json_mode=False)
+    return raw.strip(), 0.95
 
 
 async def transcribe_audio(audio_bytes: bytes, mime: str = "audio/mpeg") -> tuple[str, float]:
-    """Transcribe lecture audio. Returns (transcript, confidence)."""
+    """Transcribe lecture audio using direct Gemini Flash. Returns (transcript, confidence)."""
     prompt = (
-        "Transcribe this spoken audio completely. It is likely a lecture or "
-        "study explanation. Preserve original language. Mark speakers as "
-        "'Speaker 1:' etc. only if multiple voices are clearly present. "
-        "Format into readable paragraphs at natural topic shifts.\n"
-        'Reply ONLY as JSON: {"text": "...", "confidence": 0.0}'
+        "Transcribe this spoken lecture audio completely. Preserve original terminology and formulas. "
+        "Format into readable paragraphs with clear headings at natural topic shifts. "
+        "Output the transcript directly in structured Markdown."
     )
-    raw = await _generate([_b64_part(audio_bytes, mime), prompt], json_mode=True)
-    try:
-        parsed = json.loads(raw)
-        return str(parsed.get("text", "")), max(0.0, min(1.0, float(parsed.get("confidence", 0.5))))
-    except json.JSONDecodeError:
-        return raw, 0.5
+    raw = await _generate([_b64_part(audio_bytes, mime), prompt], json_mode=False)
+    return raw.strip(), 0.95
 
 
 async def vision_page_fallback(image_bytes: bytes, mime: str) -> str:

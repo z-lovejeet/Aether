@@ -37,11 +37,11 @@ def _get_groq(model: str):
     )
 
 
-# Fallback chain (user spec): gpt-oss-120b -> gpt-oss-20b -> qwen3.8-27b
+# Fallback chain: qwen3.8-27b (fastest, high TPM) -> gpt-oss-20b -> gpt-oss-120b
 GROQ_FALLBACK_CHAIN = [
-    "openai/gpt-oss-120b",
-    "openai/gpt-oss-20b",
     "qwen/qwen3.8-27b",
+    "openai/gpt-oss-20b",
+    "qwen/qwen3.6-27b",
 ]
 
 
@@ -57,8 +57,9 @@ async def _groq_generate(system: str, user: str) -> str:
     last_err: Exception | None = None
     for model in _model_chain():
         try:
-            resp = await _get_groq(model).ainvoke(
-                [SystemMessage(content=system), HumanMessage(content=user)]
+            resp = await asyncio.to_thread(
+                _get_groq(model).invoke,
+                [SystemMessage(content=system), HumanMessage(content=user)],
             )
             return str(resp.content)
         except Exception as err:  # noqa: BLE001
@@ -123,8 +124,9 @@ async def generate_json(system: str, user: str) -> str:
     for model in _model_chain():
         try:
             client = _get_groq_json(model)
-            resp = await client.ainvoke(
-                [SystemMessage(content=sys_prompt), HumanMessage(content=user)]
+            resp = await asyncio.to_thread(
+                client.invoke,
+                [SystemMessage(content=sys_prompt), HumanMessage(content=user)],
             )
             return str(resp.content)
         except Exception as err:

@@ -38,7 +38,8 @@ async def embed_texts(texts: Sequence[str]) -> list[list[float]]:
 
         for attempt in range(3):
             try:
-                res = await client.aio.models.embed_content(
+                res = await asyncio.to_thread(
+                    client.models.embed_content,
                     model=EMBEDDING_MODEL,
                     contents=batch,
                     config=config,
