@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -22,10 +22,12 @@ import {
   Cpu,
   Workflow,
   BookOpen,
+  Radio,
 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/glass/LiquidGlassCard";
 import { LiquidGlassButton } from "@/components/glass/LiquidGlassButton";
 import { LiquidGlassBadge } from "@/components/glass/LiquidGlassBadge";
+import { generateTTSAudio } from "@/lib/agent-client";
 
 const PRESETS = [
   {
@@ -109,8 +111,93 @@ export default function LandingPage() {
   const [isFlipped, setIsFlipped] = useState(false);
   const [showHook, setShowHook] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, []);
+
+  function playWebSpeech(textToRead: string) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const clean = textToRead.replace(/[#*`_\[\]]/g, "");
+    const utter = new SpeechSynthesisUtterance(clean);
+    utter.rate = 1.0;
+    utter.pitch = 1.05;
+
+    const voices = window.speechSynthesis.getVoices();
+    const naturalVoice = voices.find(
+      (v) =>
+        v.name.includes("Natural") ||
+        v.name.includes("Samantha") ||
+        v.name.includes("Google US English") ||
+        (v.lang.startsWith("en") && v.name.includes("Female")),
+    );
+    if (naturalVoice) utter.voice = naturalVoice;
+
+    utter.onend = () => setIsPlayingAudio(false);
+    utter.onerror = () => setIsPlayingAudio(false);
+    window.speechSynthesis.speak(utter);
+    setIsPlayingAudio(true);
+  }
+
+  async function handleToggleAudio() {
+    if (isPlayingAudio) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      setIsPlayingAudio(false);
+      return;
+    }
+
+    const textToRead = activePreset.rawNote;
+    setAudioLoading(true);
+
+    try {
+      const blob = await generateTTSAudio(textToRead, 1000);
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsPlayingAudio(false);
+        URL.revokeObjectURL(url);
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        playWebSpeech(textToRead);
+      };
+
+      await audio.play();
+      setIsPlayingAudio(true);
+    } catch {
+      playWebSpeech(textToRead);
+    } finally {
+      setAudioLoading(false);
+    }
+  }
 
   function handlePresetChange(p: typeof PRESETS[0]) {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
     setActivePreset(p);
     setSelectedOption(null);
     setIsFlipped(false);
@@ -266,14 +353,33 @@ export default function LandingPage() {
               <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-sm flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <button
-                    onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+                    onClick={handleToggleAudio}
+                    disabled={audioLoading}
+                    title={isPlayingAudio ? "Pause Spoken Lesson" : "Listen to Spoken Lesson"}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0 shadow-xs"
                   >
-                    {isPlayingAudio ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 ml-0.5" />}
+                    {audioLoading ? (
+                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : isPlayingAudio ? (
+                      <Pause className="h-3.5 w-3.5" />
+                    ) : (
+                      <Play className="h-3.5 w-3.5 ml-0.5" />
+                    )}
                   </button>
                   <div>
-                    <p className="text-xs font-bold text-slate-900">Audio Voice Lesson</p>
-                    <p className="text-[10px] text-slate-500">Synthesized spoken explainer</p>
+                    <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>Audio Voice Lesson</span>
+                      {isPlayingAudio && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      )}
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      {audioLoading
+                        ? "Synthesizing voice audio…"
+                        : isPlayingAudio
+                        ? "Playing active audio explainer"
+                        : "Synthesized spoken explainer"}
+                    </p>
                   </div>
                 </div>
 
@@ -284,7 +390,9 @@ export default function LandingPage() {
                       key={i}
                       animate={isPlayingAudio ? { height: ["20%", "100%", "30%"] } : { height: `${h}%` }}
                       transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.08 }}
-                      className="w-1 bg-indigo-600 rounded-full"
+                      className={`w-1 rounded-full transition-colors ${
+                        isPlayingAudio ? "bg-indigo-600" : "bg-indigo-400/60"
+                      }`}
                       style={{ height: `${h}%` }}
                     />
                   ))}
