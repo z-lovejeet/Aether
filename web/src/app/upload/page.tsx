@@ -183,6 +183,8 @@ export default function UploadPage() {
           sourceMeta: run.result.sourceMeta ?? {},
           subject: subject.trim() || "General",
           level,
+          createdAt: new Date().toISOString(),
+          timestamp: Date.now(),
         };
         sessionStorage.setItem(`ingest:${sid}`, JSON.stringify(payloadToSave));
         sessionStorage.setItem(`study:${sid}`, JSON.stringify(payloadToSave));

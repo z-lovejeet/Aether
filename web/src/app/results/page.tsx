@@ -12,6 +12,8 @@ import {
   CheckCircle2,
   Network,
   AlertTriangle,
+  ArrowUpDown,
+  Clock,
 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/glass/LiquidGlassCard";
 import { LiquidGlassButton } from "@/components/glass/LiquidGlassButton";
@@ -24,10 +26,13 @@ interface SavedSystem {
   conceptsCount: number;
   level: string;
   createdAt: string;
+  timestamp: number;
   masteryPct: number;
   materialId?: string;
   isCustom?: boolean;
 }
+
+const NOW = Date.now();
 
 const DEFAULT_SYSTEMS: SavedSystem[] = [
   {
@@ -36,7 +41,8 @@ const DEFAULT_SYSTEMS: SavedSystem[] = [
     title: "Cellular Respiration & Glycolysis Hub",
     conceptsCount: 8,
     level: "Intermediate",
-    createdAt: "Today",
+    createdAt: "1 day ago",
+    timestamp: NOW - 3600 * 1000 * 24,
     masteryPct: 88,
   },
   {
@@ -45,7 +51,8 @@ const DEFAULT_SYSTEMS: SavedSystem[] = [
     title: "Dijkstra & Graph Shortest Path Hub",
     conceptsCount: 6,
     level: "Advanced",
-    createdAt: "Yesterday",
+    createdAt: "2 days ago",
+    timestamp: NOW - 3600 * 1000 * 48,
     masteryPct: 75,
   },
   {
@@ -55,6 +62,7 @@ const DEFAULT_SYSTEMS: SavedSystem[] = [
     conceptsCount: 10,
     level: "Advanced",
     createdAt: "3 days ago",
+    timestamp: NOW - 3600 * 1000 * 72,
     masteryPct: 62,
   },
 ];
@@ -63,6 +71,7 @@ export default function ResultsPage() {
   const [systems, setSystems] = useState<SavedSystem[]>(DEFAULT_SYSTEMS);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubject, setSelectedSubject] = useState<string>("All");
+  const [sortBy, setSortBy] = useState<"newest" | "mastery" | "concepts">("newest");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deletedToast, setDeletedToast] = useState<string | null>(null);
 
@@ -72,7 +81,7 @@ export default function ResultsPage() {
     let isMounted = true;
     const sessionMap = new Map<string, SavedSystem>();
 
-    // 1. Scan sessionStorage
+    // 1. Scan sessionStorage (stored reverse chronologically or with timestamps)
     for (let i = 0; i < sessionStorage.length; i++) {
       const key = sessionStorage.key(i);
       if (key && (key.startsWith("study:") || key.startsWith("ingest:"))) {
@@ -82,6 +91,14 @@ export default function ResultsPage() {
             const data = JSON.parse(raw);
             const sid = key.split(":")[1];
             if (sid && !sessionMap.has(sid)) {
+              let ts = Date.now();
+              if (data.timestamp && typeof data.timestamp === "number") {
+                ts = data.timestamp;
+              } else if (data.createdAt) {
+                const parsed = new Date(data.createdAt).getTime();
+                if (!isNaN(parsed)) ts = parsed;
+              }
+
               sessionMap.set(sid, {
                 id: sid,
                 materialId: data.materialId,
@@ -89,7 +106,8 @@ export default function ResultsPage() {
                 title: data.conceptTree?.[0]?.name ? `${data.conceptTree[0].name} Hub` : "Active Study Hub",
                 conceptsCount: data.conceptTree?.length || 5,
                 level: data.level || "Intermediate",
-                createdAt: "Recently Generated",
+                createdAt: data.createdAt ? new Date(data.createdAt).toLocaleDateString() : "Just Now",
+                timestamp: ts,
                 masteryPct: 60,
                 isCustom: true,
               });
@@ -103,7 +121,7 @@ export default function ResultsPage() {
 
     // Combine default systems + sessionStorage systems
     const baseMap = new Map<string, SavedSystem>();
-    // Session items first
+    // Session items first (newer)
     for (const [id, sys] of sessionMap.entries()) {
       baseMap.set(id, sys);
     }
@@ -127,6 +145,8 @@ export default function ResultsPage() {
           }
           for (const m of remoteMaterials) {
             if (!mergedMap.has(m.id)) {
+              const parsedDate = m.createdAt ? new Date(m.createdAt) : null;
+              const ts = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate.getTime() : Date.now();
               mergedMap.set(m.id, {
                 id: m.id,
                 materialId: m.id,
@@ -134,7 +154,8 @@ export default function ResultsPage() {
                 title: `${m.title} Hub`,
                 conceptsCount: m.conceptsCount || 4,
                 level: "Intermediate",
-                createdAt: m.createdAt ? new Date(m.createdAt).toLocaleDateString() : "Saved",
+                createdAt: parsedDate ? parsedDate.toLocaleDateString() : "Saved",
+                timestamp: ts,
                 masteryPct: 65,
                 isCustom: true,
               });
@@ -185,21 +206,28 @@ export default function ResultsPage() {
 
   const filteredSystems = useMemo(() => {
     const seen = new Set<string>();
-    return systems.filter((s) => {
-      if (seen.has(s.id)) return false;
-      seen.add(s.id);
-      if (selectedSubject !== "All" && s.subject !== selectedSubject) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        return (
-          s.title.toLowerCase().includes(q) ||
-          s.subject.toLowerCase().includes(q) ||
-          s.level.toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-  }, [systems, selectedSubject, searchQuery]);
+    return systems
+      .filter((s) => {
+        if (seen.has(s.id)) return false;
+        seen.add(s.id);
+        if (selectedSubject !== "All" && s.subject !== selectedSubject) return false;
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          return (
+            s.title.toLowerCase().includes(q) ||
+            s.subject.toLowerCase().includes(q) ||
+            s.level.toLowerCase().includes(q)
+          );
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === "mastery") return b.masteryPct - a.masteryPct;
+        if (sortBy === "concepts") return b.conceptsCount - a.conceptsCount;
+        // Default: Newest First
+        return (b.timestamp ?? 0) - (a.timestamp ?? 0);
+      });
+  }, [systems, selectedSubject, searchQuery, sortBy]);
 
   return (
     <main className="relative min-h-screen px-4 pb-24 sm:px-8">
@@ -226,8 +254,8 @@ export default function ResultsPage() {
           </Link>
         </div>
 
-        {/* ─── Search & Subject Filters Bar ─── */}
-        <div className="mt-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        {/* ─── Search, Filters & Sort Bar ─── */}
+        <div className="mt-6 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
@@ -239,20 +267,38 @@ export default function ResultsPage() {
             />
           </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-            {subjects.map((sub) => (
-              <button
-                key={sub}
-                onClick={() => setSelectedSubject(sub)}
-                className={`px-3 py-1.5 text-xs rounded-xl font-medium transition-all shrink-0 ${
-                  selectedSubject === sub
-                    ? "bg-slate-900 text-white shadow-xs"
-                    : "bg-slate-100 hover:bg-slate-200/70 text-slate-600 border border-slate-200"
-                }`}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Subject Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+              {subjects.map((sub) => (
+                <button
+                  key={sub}
+                  onClick={() => setSelectedSubject(sub)}
+                  className={`px-3 py-1.5 text-xs rounded-xl font-medium transition-all shrink-0 ${
+                    selectedSubject === sub
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "bg-slate-100 hover:bg-slate-200/70 text-slate-600 border border-slate-200"
+                  }`}
+                >
+                  {sub}
+                </button>
+              ))}
+            </div>
+
+            {/* Sort Selector */}
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs text-slate-600">
+              <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />
+              <span className="text-[11px] text-slate-400">Sort:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="bg-transparent font-semibold text-slate-800 focus:outline-hidden cursor-pointer text-xs"
               >
-                {sub}
-              </button>
-            ))}
+                <option value="newest">Newest First ⚡</option>
+                <option value="mastery">Highest Mastery</option>
+                <option value="concepts">Most Concepts</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -300,7 +346,10 @@ export default function ResultsPage() {
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-mono text-indigo-600 font-bold">{sys.subject}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-slate-400 text-[11px]">{sys.createdAt}</span>
+                      <span className="text-slate-400 text-[11px] flex items-center gap-1">
+                        <Clock className="h-3 w-3 text-slate-300" />
+                        {sys.createdAt}
+                      </span>
                       
                       {/* Delete Trigger Button */}
                       <button
