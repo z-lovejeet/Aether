@@ -23,6 +23,10 @@ import {
   Workflow,
   BookOpen,
   Radio,
+  GraduationCap,
+  Activity,
+  MessageSquare,
+  ShieldCheck,
 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/glass/LiquidGlassCard";
 import { LiquidGlassButton } from "@/components/glass/LiquidGlassButton";
@@ -186,7 +190,7 @@ export default function LandingPage() {
       }
     }
 
-    // 2. Dynamic generation via backend TTS (ElevenLabs + Edge-TTS fallback)
+    // 2. Dynamic generation via backend TTS (Edge-TTS)
     const textToRead = activePreset.rawNote;
     setAudioLoading(true);
 
@@ -240,7 +244,7 @@ export default function LandingPage() {
           className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white border border-slate-200/90 text-slate-600 text-xs font-medium shadow-sm mb-6"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 animate-pulse" />
-          <span className="font-mono tracking-wider uppercase text-[11px] text-slate-700 font-semibold">Aether Study Engine</span>
+          <span className="font-mono tracking-wider uppercase text-[11px] text-slate-700 font-semibold">Aether Multi-Agent Study OS</span>
         </motion.div>
 
         {/* Clean, Proportionate Headline */}
@@ -261,7 +265,7 @@ export default function LandingPage() {
           transition={{ duration: 0.4, delay: 0.1 }}
           className="mx-auto mt-5 max-w-xl text-base sm:text-lg text-slate-600 leading-relaxed font-sans"
         >
-          Drop in any lecture slides, PDF chapter, or voice recording. Aether builds an active concept tree, adaptive quizzes, and an automated rescue coach tailored to your Learning DNA.
+          Drop in any lecture recording, PDF chapter, photo, or YouTube link. Aether builds an active concept tree, adaptive quizzes, neural audio lessons, and an automated rescue coach tailored to your Learning DNA.
         </motion.p>
 
         {/* Action Controls */}
@@ -364,7 +368,7 @@ export default function LandingPage() {
                   <FileText className="h-3.5 w-3.5 text-indigo-600" /> Source Extraction
                 </span>
                 <span className="text-[11px] font-mono text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                  ✓ Ingested 3.8s
+                  ✓ Ingested in 0.00s
                 </span>
               </div>
 
@@ -379,88 +383,84 @@ export default function LandingPage() {
                   <button
                     onClick={handleToggleAudio}
                     disabled={audioLoading}
-                    title={isPlayingAudio ? "Pause Spoken Lesson" : "Listen to Spoken Lesson"}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0 shadow-xs"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-xs disabled:opacity-50 shrink-0"
+                    title={isPlayingAudio ? "Pause Audio Lesson" : "Listen to Neural Audio Lesson"}
                   >
                     {audioLoading ? (
-                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      <RotateCw className="h-4 w-4 animate-spin" />
                     ) : isPlayingAudio ? (
-                      <Pause className="h-3.5 w-3.5" />
+                      <Pause className="h-4 w-4" />
                     ) : (
-                      <Play className="h-3.5 w-3.5 ml-0.5" />
+                      <Play className="h-4 w-4 ml-0.5" />
                     )}
                   </button>
                   <div>
                     <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                      <span>Audio Voice Lesson</span>
-                      {isPlayingAudio && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      )}
+                      <span>Ava Neural Lesson</span>
+                      <span className="text-[9px] font-mono bg-indigo-50 text-indigo-700 px-1 rounded border border-indigo-200">
+                        128kbps
+                      </span>
                     </p>
-                    <p className="text-[10px] text-slate-500">
-                      {audioLoading
-                        ? "Synthesizing voice audio…"
-                        : isPlayingAudio
-                        ? "Playing active audio explainer"
-                        : "Synthesized spoken explainer"}
+                    <p className="text-[11px] text-slate-500">
+                      {isPlayingAudio ? "Playing audio synthesis…" : "Click play to listen"}
                     </p>
                   </div>
                 </div>
 
-                {/* Animated Waveform */}
-                <div className="flex items-center gap-1 h-4">
-                  {[40, 75, 55, 90, 60, 80, 45, 70].map((h, i) => (
-                    <motion.div
-                      key={i}
-                      animate={isPlayingAudio ? { height: ["20%", "100%", "30%"] } : { height: `${h}%` }}
-                      transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.08 }}
-                      className={`w-1 rounded-full transition-colors ${
-                        isPlayingAudio ? "bg-indigo-600" : "bg-indigo-400/60"
-                      }`}
-                      style={{ height: `${h}%` }}
-                    />
+                <div className="flex items-center gap-1 text-indigo-600">
+                  <Volume2 className="h-4 w-4" />
+                </div>
+              </div>
+
+              {/* Concept Pills */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">
+                  Identified Concepts:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {activePreset.concepts.map((c) => (
+                    <span
+                      key={c.name}
+                      className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium shadow-2xs"
+                    >
+                      {c.name}
+                    </span>
                   ))}
                 </div>
               </div>
             </div>
 
-            {/* Right Column: Interactive Active Study Runner */}
-            <div className="lg:col-span-7 p-6 sm:p-8 space-y-5">
-              {/* Mode 1: Active Recall Quiz */}
+            {/* Right Column: Interactive Mode View */}
+            <div className="lg:col-span-7 p-6 bg-white flex flex-col justify-between min-h-[380px]">
+              {/* Mode 1: Active Retrieval Quiz */}
               {activeMode === "quiz" && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wider">
-                      Active Recall MCQ
+                    <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+                      Active Retrieval Question
                     </span>
-                    <span className="text-[11px] font-mono text-slate-400">Click an option to test</span>
+                    <span className="text-[11px] text-slate-400 font-mono">Calibrated Level 3</span>
                   </div>
 
-                  <h3 className="font-display text-base sm:text-lg font-bold text-slate-900 leading-snug">
+                  <p className="text-sm font-bold text-slate-900 leading-snug">
                     {activePreset.sampleQuestion}
-                  </h3>
+                  </p>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 pt-1">
                     {activePreset.options.map((opt) => {
                       const isSelected = selectedOption === opt;
                       const isCorrect = opt === activePreset.correctAnswer;
-
-                      let style = "border-slate-200 bg-white hover:bg-slate-50 text-slate-700";
-                      if (selectedOption) {
-                        if (isCorrect) {
-                          style = "border-emerald-400 bg-emerald-50 text-emerald-900 font-semibold shadow-sm";
-                        } else if (isSelected && !isCorrect) {
-                          style = "border-rose-300 bg-rose-50 text-rose-900";
-                        } else {
-                          style = "opacity-40 border-slate-200";
-                        }
-                      }
-
                       return (
                         <button
                           key={opt}
                           onClick={() => setSelectedOption(opt)}
-                          className={`w-full text-left p-3.5 rounded-xl border text-xs sm:text-sm font-medium transition-all ${style}`}
+                          className={`w-full text-left p-3 rounded-xl border text-xs transition-all ${
+                            isSelected
+                              ? isCorrect
+                                ? "bg-emerald-50 border-emerald-300 text-emerald-950 font-medium"
+                                : "bg-rose-50 border-rose-300 text-rose-950"
+                              : "bg-slate-50/60 hover:bg-slate-100/80 border-slate-200/80 text-slate-700"
+                          }`}
                         >
                           {opt}
                         </button>
@@ -470,34 +470,37 @@ export default function LandingPage() {
 
                   {selectedOption && (
                     <motion.div
-                      initial={{ opacity: 0, y: 4 }}
+                      initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1"
+                      className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 leading-relaxed"
                     >
-                      <p className="font-semibold text-slate-900">
-                        {selectedOption === activePreset.correctAnswer ? "✓ Active Recall Verified" : "💡 Model Feedback"}
-                      </p>
-                      <p className="leading-relaxed">{activePreset.explanation}</p>
+                      💡 <b>Explanation:</b> {activePreset.explanation}
                     </motion.div>
                   )}
                 </div>
               )}
 
-              {/* Mode 2: 3D Flashcard */}
+              {/* Mode 2: 3D Memory Flashcard */}
               {activeMode === "flashcard" && (
                 <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+                      Spaced Retrieval Flashcard
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-mono">SM-2 Spaced</span>
+                  </div>
+
                   <div
                     onClick={() => setIsFlipped(!isFlipped)}
-                    className="cursor-pointer min-h-[180px] rounded-2xl border border-slate-200 bg-white p-6 flex flex-col justify-between shadow-sm hover:border-slate-300 transition-all"
+                    className="cursor-pointer rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/80 p-6 text-center shadow-sm min-h-[190px] flex flex-col justify-between transition-all hover:border-slate-300"
                   >
-                    <div>
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-bold block mb-2">
-                        {isFlipped ? "Answer (Back)" : "Active Recall Prompt (Front)"}
-                      </span>
-                      <h4 className="font-display text-base sm:text-lg font-bold text-slate-900">
-                        {isFlipped ? activePreset.flashcardBack : activePreset.flashcardFront}
-                      </h4>
+                    <div className="text-[10px] uppercase tracking-wider font-mono text-slate-400">
+                      {isFlipped ? "Answer & Key Takeaway" : "Active Question"}
                     </div>
+
+                    <p className="text-sm sm:text-base font-bold text-slate-900 py-4 leading-relaxed">
+                      {isFlipped ? activePreset.flashcardBack : activePreset.flashcardFront}
+                    </p>
 
                     <div className="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-100">
                       <span className="text-slate-400">Click to flip card</span>
@@ -572,7 +575,93 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* ─── 3. Three Core Methodologies ─── */}
+      {/* ─── 3. Full Feature Suite Spotlight ─── */}
+      <section className="mx-auto mt-24 max-w-5xl">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold mb-3">
+            <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+            <span>Complete Learning Suite</span>
+          </div>
+          <h2 className="display text-3xl sm:text-4xl font-extrabold text-slate-900">
+            Engineered for complete mastery
+          </h2>
+          <p className="mt-2 text-sm text-slate-600 max-w-lg mx-auto">
+            From raw input to classroom deployment, every tool is powered by specialized AI agents.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link href="/upload" className="block">
+            <LiquidGlassCard depth="low" className="p-6 h-full hover:border-indigo-300 transition-all bg-white/95 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 mb-3">
+                  <Layers className="h-5 w-5" />
+                </div>
+                <h3 className="font-display text-base font-bold text-slate-900">5-in-1 Studio Ingestion</h3>
+                <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                  Ingest photos, PDF textbooks, audio lectures, YouTube videos, and text notes in under 15 seconds.
+                </p>
+              </div>
+              <span className="text-xs text-indigo-600 font-semibold flex items-center gap-1 mt-4">
+                Launch Studio <ArrowRight className="h-3 w-3" />
+              </span>
+            </LiquidGlassCard>
+          </Link>
+
+          <Link href="/questions" className="block">
+            <LiquidGlassCard depth="low" className="p-6 h-full hover:border-sky-300 transition-all bg-white/95 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600 border border-sky-100 mb-3">
+                  <BookOpen className="h-5 w-5" />
+                </div>
+                <h3 className="font-display text-base font-bold text-slate-900">Practice Arena</h3>
+                <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                  Generate on-demand custom test sets across any topic, calibrated to your difficulty level.
+                </p>
+              </div>
+              <span className="text-xs text-sky-600 font-semibold flex items-center gap-1 mt-4">
+                Enter Arena <ArrowRight className="h-3 w-3" />
+              </span>
+            </LiquidGlassCard>
+          </Link>
+
+          <Link href="/teacher" className="block">
+            <LiquidGlassCard depth="low" className="p-6 h-full hover:border-emerald-300 transition-all bg-white/95 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 mb-3">
+                  <GraduationCap className="h-5 w-5" />
+                </div>
+                <h3 className="font-display text-base font-bold text-slate-900">Teacher Worksheets</h3>
+                <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                  Instant differentiated classroom worksheets with 3 tiered tiers and teacher answer keys.
+                </p>
+              </div>
+              <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 mt-4">
+                Generate Worksheets <ArrowRight className="h-3 w-3" />
+              </span>
+            </LiquidGlassCard>
+          </Link>
+
+          <Link href="/analyzer" className="block">
+            <LiquidGlassCard depth="low" className="p-6 h-full hover:border-purple-300 transition-all bg-white/95 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 border border-purple-100 mb-3">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <h3 className="font-display text-base font-bold text-slate-900">Memory Telemetry</h3>
+                <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                  Live Ebbinghaus retention curves, strategy win-rate leaderboards, and SuperMemo ease factor metrics.
+                </p>
+              </div>
+              <span className="text-xs text-purple-600 font-semibold flex items-center gap-1 mt-4">
+                View Telemetry <ArrowRight className="h-3 w-3" />
+              </span>
+            </LiquidGlassCard>
+          </Link>
+        </div>
+      </section>
+
+      {/* ─── 4. Three Core Cognitive Mechanics ─── */}
       <section className="mx-auto mt-24 max-w-5xl">
         <div className="text-center mb-12">
           <h2 className="display text-3xl sm:text-4xl font-extrabold text-slate-900">
@@ -616,14 +705,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── 4. Bottom CTA ─── */}
+      {/* ─── 5. Bottom CTA ─── */}
       <section className="mx-auto mt-24 max-w-4xl text-center">
         <LiquidGlassCard depth="medium" className="p-10 sm:p-14 border-slate-200/90 bg-white/95 shadow-xl">
           <h2 className="display text-3xl sm:text-5xl font-extrabold text-slate-900">
             Build your study system today.
           </h2>
           <p className="mx-auto mt-3 max-w-md text-sm text-slate-600">
-            Free to use. Upload your notes or choose a sample study set to see the engine in action.
+            Free to use. Upload your notes, slides, or lecture recording to experience the engine in action.
           </p>
           <div className="mt-8 flex justify-center gap-3">
             <Link href="/upload">
