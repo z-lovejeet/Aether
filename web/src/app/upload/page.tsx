@@ -12,6 +12,7 @@ import {
   Sparkles,
   ArrowRight,
   AlertCircle,
+  X,
 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/glass/LiquidGlassCard";
 import { LiquidGlassButton } from "@/components/glass/LiquidGlassButton";
@@ -98,16 +99,46 @@ export default function UploadPage() {
 
     if (tab === "photo" && file) {
       const b64 = await fileToBase64(file);
-      rawInput = { type: "photo", payload: { data_base64: b64, mime_type: file.type } };
+      const mime = file.type || "image/jpeg";
+      rawInput = {
+        type: "photo",
+        payload: {
+          data_base64: b64,
+          base64: b64,
+          dataUrl: `data:${mime};base64,${b64}`,
+          mime_type: mime,
+          mime: mime,
+        },
+      };
     } else if (tab === "audio" && file) {
       const b64 = await fileToBase64(file);
-      rawInput = { type: "audio", payload: { data_base64: b64, mime_type: file.type } };
+      const mime = file.type || "audio/mpeg";
+      rawInput = {
+        type: "audio",
+        payload: {
+          data_base64: b64,
+          base64: b64,
+          dataUrl: `data:${mime};base64,${b64}`,
+          mime_type: mime,
+          mime: mime,
+        },
+      };
     } else if (tab === "youtube" && youtubeUrl.trim()) {
       rawInput = { type: "youtube", payload: { url: youtubeUrl.trim() } };
     } else if (tab === "pdf") {
       if (file) {
         const b64 = await fileToBase64(file);
-        rawInput = { type: "pdf", payload: { data_base64: b64, mime_type: file.type } };
+        const mime = file.type || "application/pdf";
+        rawInput = {
+          type: "pdf",
+          payload: {
+            data_base64: b64,
+            base64: b64,
+            dataUrl: `data:${mime};base64,${b64}`,
+            mime_type: mime,
+            mime: mime,
+          },
+        };
       } else if (pastedText.trim()) {
         rawInput = { type: "text", payload: { text: pastedText.trim() } };
       }
@@ -266,6 +297,7 @@ export default function UploadPage() {
                 icon={<Camera className="h-7 w-7 text-slate-400" />}
                 file={file}
                 onFile={(f) => setFile(f)}
+                onClear={() => setFile(null)}
                 accept="image/*"
                 fileRef={fileRef}
               />
@@ -281,6 +313,7 @@ export default function UploadPage() {
                     setFile(f);
                     setPastedText("");
                   }}
+                  onClear={() => setFile(null)}
                   accept=".pdf,.txt,text/plain,application/pdf"
                   fileRef={fileRef}
                 />
@@ -288,7 +321,7 @@ export default function UploadPage() {
                   <textarea
                     value={pastedText}
                     onChange={(e) => setPastedText(e.target.value)}
-                    placeholder="…or paste raw textbook text or lecture notes directly here"
+                    placeholder="…or paste raw textbook text, lecture notes, or enter a study topic directly here"
                     rows={5}
                     className="w-full rounded-2xl p-4 text-xs sm:text-sm text-slate-800 outline-none placeholder:text-slate-400 border border-slate-200/90 bg-slate-50/70 focus:border-slate-400 focus:bg-white transition-all"
                   />
@@ -310,6 +343,7 @@ export default function UploadPage() {
                 icon={<Mic className="h-7 w-7 text-slate-400" />}
                 file={file}
                 onFile={(f) => setFile(f)}
+                onClear={() => setFile(null)}
                 accept="audio/*"
                 fileRef={fileRef}
               />
@@ -392,6 +426,7 @@ function DropZone({
   icon,
   file,
   onFile,
+  onClear,
   accept,
   fileRef,
 }: {
@@ -399,6 +434,7 @@ function DropZone({
   icon: React.ReactNode;
   file: File | null;
   onFile: (f: File) => void;
+  onClear?: () => void;
   accept: string;
   fileRef: React.RefObject<HTMLInputElement | null>;
 }) {
@@ -409,16 +445,32 @@ function DropZone({
         type="file"
         accept={accept}
         hidden
-        onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
+        onChange={(e) => {
+          if (e.target.files?.[0]) onFile(e.target.files[0]);
+          e.target.value = "";
+        }}
       />
       <div
         onClick={() => fileRef.current?.click()}
-        className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-all duration-150 ${
+        className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-all duration-150 ${
           file
             ? "border-emerald-400 bg-emerald-50/50"
             : "border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-slate-50"
         }`}
       >
+        {file && onClear && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClear();
+            }}
+            className="absolute right-3 top-3 rounded-full bg-white p-1 text-slate-400 hover:text-slate-700 shadow-xs border border-slate-200"
+            title="Remove file"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
         <div className="flex justify-center">{icon}</div>
         <p className="font-display text-xs sm:text-sm font-semibold text-slate-800 mt-2">{label}</p>
         <p className="text-xs text-slate-500 mt-0.5">
