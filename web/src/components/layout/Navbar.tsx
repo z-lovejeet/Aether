@@ -13,11 +13,13 @@ import {
   Menu,
   X,
   ArrowRight,
+  GraduationCap,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/upload", label: "Studio", icon: Upload },
   { href: "/questions", label: "Practice", icon: BookOpen },
+  { href: "/teacher", label: "Teacher", icon: GraduationCap },
   { href: "/analyzer", label: "Analyzer", icon: BarChart3 },
   { href: "/results", label: "Library", icon: Layers },
   { href: "/about", label: "About", icon: Info },
