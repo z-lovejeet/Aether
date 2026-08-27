@@ -167,6 +167,21 @@ async def concept_architect(state: dict) -> dict:
             return mid, inserted_map
 
         material_id, id_map = await asyncio.to_thread(_persist)
+
+        # ---- Phase 8: Index document chunks with embeddings for RAG ----
+        if material_id and cleaned.strip():
+            try:
+                from .chunker import chunk_text
+                from ...llm.embed import embed_texts
+                chunks = chunk_text(cleaned)
+                if chunks:
+                    embs = await embed_texts([c["content"] for c in chunks])
+                    for i, emb in enumerate(embs):
+                        chunks[i]["embedding"] = emb
+                    await asyncio.to_thread(db.insert_chunks, material_id, chunks)
+                    print(f"[concept_architect] Indexed {len(chunks)} RAG chunks for material {material_id}")
+            except Exception as emb_err:
+                print(f"[concept_architect] RAG chunk indexing failed: {emb_err}")
     except Exception as err:  # noqa: BLE001 — persistence must not kill the run
         persist_error = str(err)
         print(f"[concept_architect] persistence failed: {err}")
