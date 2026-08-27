@@ -57,12 +57,21 @@ def _ensure_user_exists(cur, user_id: str) -> None:
 
 def _get_conn():
     global _conn
-    if _conn is None:
-        import psycopg
+    import psycopg
 
-        url = os.environ.get("SUPABASE_DB_URL")
-        if not url:
-            raise RuntimeError("SUPABASE_DB_URL missing from agents/.env.local")
+    url = os.environ.get("SUPABASE_DB_URL")
+    if not url:
+        raise RuntimeError("SUPABASE_DB_URL missing from agents/.env.local")
+
+    if _conn is None or getattr(_conn, "closed", False):
+        _conn = psycopg.connect(url, autocommit=True, prepare_threshold=None)
+        return _conn
+
+    try:
+        with _conn.cursor() as cur:
+            cur.execute("SELECT 1")
+    except Exception:
+        reset_conn()
         _conn = psycopg.connect(url, autocommit=True, prepare_threshold=None)
     return _conn
 
@@ -479,10 +488,21 @@ def record_strategy_attempt(
 # ============ Phase 7: Mind Map + Progress ============
 
 
+def _is_valid_uuid(val: Any) -> bool:
+    import uuid as _uuid
+    try:
+        _uuid.UUID(str(val))
+        return True
+    except Exception:
+        return False
+
+
 def get_material_concepts_with_mastery(material_id: str) -> list[dict]:
     """Fetch all concepts for a material joined with their mastery data.
     Returns list of dicts with concept info + nested mastery object.
     Used by GET /materials/{id}/mastery-map for mind map coloring."""
+    if not _is_valid_uuid(material_id):
+        return []
     conn = _get_conn()
     with conn.cursor() as cur:
         cur.execute(
@@ -526,6 +546,8 @@ def get_material_strategy_stats(material_id: str) -> list[dict]:
     """Aggregate strategy attempt statistics for all concepts in a material.
     Returns list of {strategy, total, successes, rate}.
     Used by GET /materials/{id}/progress for strategy effectiveness chart."""
+    if not _is_valid_uuid(material_id):
+        return []
     conn = _get_conn()
     with conn.cursor() as cur:
         cur.execute(
@@ -559,6 +581,8 @@ def get_weakest_concepts(material_id: str, limit: int = 10) -> list[dict]:
     """Get the weakest concepts for a material, sorted by fail_count DESC then
     ease_factor ASC. Only returns concepts with fail_count > 0 or EF < 2.0.
     Used by GET /materials/{id}/progress for the 'needs attention' list."""
+    if not _is_valid_uuid(material_id):
+        return []
     conn = _get_conn()
     with conn.cursor() as cur:
         cur.execute(
@@ -592,6 +616,13 @@ def get_material_attempt_stats(material_id: str) -> dict:
     """Get overall attempt statistics for a material.
     Returns {totalAttempts, totalCorrect, totalPartial, totalWrong}.
     Used by GET /materials/{id}/progress for the overall stats card."""
+    if not _is_valid_uuid(material_id):
+        return {
+            "totalAttempts": 0,
+            "totalCorrect": 0,
+            "totalPartial": 0,
+            "totalWrong": 0,
+        }
     conn = _get_conn()
     with conn.cursor() as cur:
         cur.execute(

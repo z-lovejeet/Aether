@@ -411,11 +411,7 @@ async def get_mastery_map(material_id: str) -> dict[str, Any]:
     nodes = await asyncio.to_thread(
         get_material_concepts_with_mastery, material_id
     )
-    if not nodes:
-        raise HTTPException(
-            status_code=404, detail="no concepts found for this material"
-        )
-    return {"nodes": nodes}
+    return {"nodes": nodes or []}
 
 
 @app.get("/materials/{material_id}/progress")
