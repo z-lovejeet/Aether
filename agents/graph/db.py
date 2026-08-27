@@ -844,4 +844,89 @@ def get_material_for_session(session_id: str) -> str | None:
     return None
 
 
+def delete_material(material_id: str) -> bool:
+    """Delete a material and cascade-delete all concepts, mastery, quiz items, flashcards, and RAG chunks."""
+    import uuid as _uuid
+    try:
+        _uuid.UUID(str(material_id))
+    except (ValueError, TypeError):
+        return False
+
+    conn = _get_conn()
+    with conn.cursor() as cur:
+        # Also clean up any agent_runs referencing this material
+        try:
+            cur.execute(
+                "DELETE FROM agent_runs WHERE graph_state->>'materialId' = %s",
+                (str(material_id),),
+            )
+        except Exception:
+            pass
+
+        cur.execute("DELETE FROM materials WHERE id = %s", (str(material_id),))
+        conn.commit()
+        return cur.rowcount > 0
+
+
+def delete_session(session_id: str) -> bool:
+    """Delete an agent run and any associated materials for a given session ID."""
+    import json as _json
+    import uuid as _uuid
+    try:
+        _uuid.UUID(str(session_id))
+    except (ValueError, TypeError):
+        return False
+
+    conn = _get_conn()
+    with conn.cursor() as cur:
+        # Find material_id from agent_runs
+        cur.execute(
+            "SELECT graph_state FROM agent_runs WHERE session_id = %s::uuid",
+            (str(session_id),),
+        )
+        rows = cur.fetchall()
+        for row in rows:
+            if row and row[0]:
+                state = row[0] if isinstance(row[0], dict) else _json.loads(row[0])
+                mat_id = state.get("materialId")
+                if mat_id:
+                    try:
+                        cur.execute("DELETE FROM materials WHERE id = %s", (str(mat_id),))
+                    except Exception:
+                        pass
+
+        cur.execute("DELETE FROM agent_runs WHERE session_id = %s::uuid", (str(session_id),))
+        conn.commit()
+        return True
+
+
+def list_materials(limit: int = 50) -> list[dict]:
+    """List stored materials with concept count and metadata for the Library."""
+    conn = _get_conn()
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT m.id, m.title, m.source_type, m.created_at, s.name as subject_name,
+                   (SELECT COUNT(*) FROM concepts c WHERE c.material_id = m.id) as concepts_count
+            FROM materials m
+            LEFT JOIN subjects s ON m.subject_id = s.id
+            ORDER BY m.created_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        )
+        rows = cur.fetchall()
+        out = []
+        for r in rows:
+            out.append({
+                "id": str(r[0]),
+                "title": r[1],
+                "sourceType": r[2],
+                "createdAt": r[3].isoformat() if r[3] else None,
+                "subject": r[4] or "General",
+                "conceptsCount": int(r[5]) if r[5] else 0,
+            })
+        return out
+
+
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -61,6 +61,15 @@ class ChatRequest(BaseModel):
     sessionId: str = Field(..., description="session UUID or identifier")
     materialId: Optional[str] = Field(default=None, description="material UUID scope (optional, auto-resolved if absent)")
     question: str = Field(..., description="learner's question text")
+
+
+class PracticeGenerateRequest(BaseModel):
+    subject: str = Field(default="General", description="Subject area")
+    topics: Union[list[str], str] = Field(..., description="Target topics or concepts")
+    level: str = Field(default="intermediate", description="Difficulty: beginner, intermediate, advanced")
+    count: int = Field(default=5, description="Number of practice questions (3 to 10)")
+    goal: str = Field(default="exam", description="Learning goal: exam, deep_understanding, interview_prep, speed_review")
+    qtypes: list[str] = Field(default=["mcq", "short", "explain"], description="Question types")
 
 
 @app.get("/health")
@@ -560,6 +569,147 @@ async def chat(req: ChatRequest) -> dict[str, Any]:
     except Exception as err:
         print(f"[chat] query execution failed: {err}")
         raise HTTPException(status_code=500, detail=f"Chat tutor error: {err}")
+
+
+# ============ Practice Arena Custom Topic Generation (Groq-Powered) ============
+
+
+@app.post("/practice/generate")
+async def generate_practice(req: PracticeGenerateRequest) -> dict[str, Any]:
+    """Dynamically generate tailored practice sets using ultra-fast Groq LPU inference."""
+    from llm.groq import generate_json
+    from llm.gemini import parse_json_safe
+    import uuid as _uuid
+
+    # Normalize topics
+    if isinstance(req.topics, list):
+        topic_str = ", ".join(req.topics)
+    else:
+        topic_str = str(req.topics)
+
+    count = max(3, min(req.count, 10))
+    level = req.level or "intermediate"
+    subject = req.subject or "General"
+    goal = req.goal or "exam"
+
+    system_prompt = f"""You are a master academic examiner and curriculum architect.
+Generate {count} high-yield, deliberate practice questions for subject="{subject}" covering topics: {topic_str}.
+Student mastery level: {level}. Goal: {goal}.
+
+RULES:
+1. Mix question types: MCQs (with 4 realistic distractor misconceptions), Short Answer (1-2 sentences), and Deep Explanation / Step-by-Step Proofs.
+2. For all mathematical, scientific, or algorithmic equations, ALWAYS format in standard KaTeX LaTeX math ($...$ inline, $$...$$ block).
+3. Provide a clear, step-by-step explanation for why the correct answer is right and why distractors are wrong.
+4. Include a conceptual hint that guides thinking without giving away the direct answer.
+5. Calibrate difficulty strictly to level={level} (1=beginner, 5=advanced olympiad/graduate).
+
+Return a STRICT JSON object:
+{{
+  "subject": "{subject}",
+  "topics": "{topic_str}",
+  "level": "{level}",
+  "questions": [
+    {{
+      "id": "gen-1",
+      "conceptName": "...",
+      "qtype": "mcq",
+      "question": "...",
+      "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
+      "answer": "A) ...",
+      "explanation": "...",
+      "hint": "...",
+      "difficulty": 3
+    }},
+    {{
+      "id": "gen-2",
+      "conceptName": "...",
+      "qtype": "short",
+      "question": "...",
+      "options": null,
+      "answer": "...",
+      "explanation": "...",
+      "hint": "...",
+      "difficulty": 4
+    }}
+  ]
+}}"""
+
+    user_payload = f"Generate {count} practice questions for {subject} covering: {topic_str}."
+
+    try:
+        raw = await generate_json(system_prompt, user_payload)
+        data = parse_json_safe(raw)
+        if isinstance(data, dict) and "questions" in data:
+            questions = data["questions"]
+        elif isinstance(data, list):
+            questions = data
+        else:
+            questions = []
+
+        sanitized = []
+        for i, q in enumerate(questions):
+            if not isinstance(q, dict):
+                continue
+            qid = q.get("id") or str(_uuid.uuid4())
+            qtype = q.get("qtype") if q.get("qtype") in ["mcq", "short", "explain"] else "mcq"
+            opts = q.get("options")
+            if qtype == "mcq" and isinstance(opts, list):
+                opts = [str(o) for o in opts[:6]]
+            else:
+                opts = None
+
+            sanitized.append({
+                "id": str(qid),
+                "conceptId": f"gen-c{i+1}",
+                "conceptName": q.get("conceptName") or f"Topic {i+1}",
+                "subject": subject,
+                "qtype": qtype,
+                "question": str(q.get("question", "")),
+                "options": opts,
+                "answer": str(q.get("answer", "")),
+                "explanation": str(q.get("explanation", "")),
+                "hint": str(q.get("hint", "")),
+                "difficulty": int(q.get("difficulty", 3)),
+            })
+
+        return {
+            "subject": subject,
+            "topics": topic_str,
+            "level": level,
+            "count": len(sanitized),
+            "questions": sanitized,
+        }
+    except Exception as err:
+        print(f"[practice] generation failed: {err}")
+        raise HTTPException(status_code=500, detail=f"Practice generation failed: {err}")
+
+
+# ============ Material & Library Management Endpoints ============
+
+
+@app.get("/materials")
+async def get_materials_list(limit: int = 50) -> list[dict[str, Any]]:
+    """List all parsed materials stored in PostgreSQL."""
+    from graph.db import list_materials
+    return await asyncio.to_thread(list_materials, limit)
+
+
+@app.delete("/materials/{material_id}")
+async def remove_material(material_id: str) -> dict[str, Any]:
+    """Delete a study material and cascade-delete all its related records."""
+    from graph.db import delete_material
+    success = await asyncio.to_thread(delete_material, material_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Material not found or invalid UUID")
+    return {"deleted": True, "materialId": material_id}
+
+
+@app.delete("/sessions/{session_id}")
+async def remove_session(session_id: str) -> dict[str, Any]:
+    """Delete an active study session and its corresponding records."""
+    from graph.db import delete_session
+    await asyncio.to_thread(delete_session, session_id)
+    return {"deleted": True, "sessionId": session_id}
 
 
 @app.websocket("/ws/{session_id}")
