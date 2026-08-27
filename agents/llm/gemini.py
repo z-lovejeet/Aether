@@ -14,6 +14,10 @@ from typing import Any
 
 from google import genai
 from google.genai import types as gtypes
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+load_dotenv(".env.local")
 
 _client: genai.Client | None = None
 
