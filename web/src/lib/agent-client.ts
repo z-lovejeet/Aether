@@ -318,5 +318,36 @@ export async function getProgress(
   return res.json();
 }
 
+/* ============ Phase 8: Chat Tutor RAG ============ */
+
+export type ChatSourceDto = {
+  chunkId: string;
+  materialId: string;
+  sectionRef: string;
+  excerpt: string;
+  similarity: number;
+};
+
+export type ChatResponseDto = {
+  answerMd: string;
+  sources: ChatSourceDto[];
+  suggestedAction: string | null;
+};
+
+export async function sendChatMessage(
+  sessionId: string,
+  materialId: string,
+  question: string,
+): Promise<ChatResponseDto> {
+  const res = await fetch(`${AGENT_API_URL}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId, materialId, question }),
+  });
+  if (!res.ok) throw new Error(`chat query failed: ${await res.text()}`);
+  return res.json();
+}
+
+
 
 
