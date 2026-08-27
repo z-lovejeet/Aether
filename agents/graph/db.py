@@ -623,3 +623,188 @@ def get_material_attempt_stats(material_id: str) -> dict:
         }
 
 
+# ============ Phase 8: Chat Tutor RAG ============
+
+
+def insert_chunks(material_id: str, chunks: list[dict[str, Any]]) -> int:
+    """Insert document chunks with embeddings into documents_chunks table.
+    Each chunk dict must have: content, embedding (list[float]), metadata (dict).
+    Returns the number of chunks inserted.
+    """
+    import json as _json
+    import uuid as _uuid
+
+    if not chunks:
+        return 0
+
+    conn = _get_conn()
+    inserted_count = 0
+    with conn.cursor() as cur:
+        # Delete old chunks for this material if re-indexing
+        cur.execute(
+            "DELETE FROM documents_chunks WHERE material_id = %s",
+            (material_id,),
+        )
+        for chunk in chunks:
+            chunk_id = str(_uuid.uuid4())
+            content = chunk.get("content", "").strip()
+            if not content:
+                continue
+
+            metadata = chunk.get("metadata", {})
+            embedding = chunk.get("embedding")
+            if embedding and len(embedding) == 768:
+                vec_str = "[" + ",".join(str(float(x)) for x in embedding) + "]"
+                cur.execute(
+                    """
+                    INSERT INTO documents_chunks (id, material_id, content, embedding, metadata)
+                    VALUES (%s, %s, %s, %s::vector, %s::jsonb)
+                    """,
+                    (chunk_id, material_id, content, vec_str, _json.dumps(metadata)),
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO documents_chunks (id, material_id, content, metadata)
+                    VALUES (%s, %s, %s, %s::jsonb)
+                    """,
+                    (chunk_id, material_id, content, _json.dumps(metadata)),
+                )
+            inserted_count += 1
+
+    return inserted_count
+
+
+def search_chunks(
+    material_id: str,
+    query_embedding: list[float],
+    top_k: int = 6,
+) -> list[dict[str, Any]]:
+    """Cosine similarity search on documents_chunks scoped to a material.
+    Returns list of {id, content, metadata, similarity} dicts.
+    """
+    import json as _json
+
+    if not query_embedding or len(query_embedding) != 768:
+        return get_material_chunks_fallback(material_id, top_k)
+
+    conn = _get_conn()
+    vec_str = "[" + ",".join(str(float(x)) for x in query_embedding) + "]"
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, content, metadata,
+                   1 - (embedding <=> %s::vector) AS similarity
+            FROM documents_chunks
+            WHERE material_id = %s AND embedding IS NOT NULL
+            ORDER BY embedding <=> %s::vector ASC
+            LIMIT %s
+            """,
+            (vec_str, material_id, vec_str, top_k),
+        )
+        rows = cur.fetchall()
+        if not rows:
+            return get_material_chunks_fallback(material_id, top_k)
+
+        results = []
+        for r in rows:
+            meta = r[2] if isinstance(r[2], dict) else _json.loads(r[2]) if r[2] else {}
+            results.append({
+                "id": str(r[0]),
+                "content": r[1],
+                "metadata": meta,
+                "similarity": float(r[3]) if r[3] is not None else 0.0,
+            })
+        return results
+
+
+def get_material_chunks_fallback(material_id: str, limit: int = 6) -> list[dict[str, Any]]:
+    """Fallback retrieval: returns raw chunks from documents_chunks or material raw_text."""
+    import json as _json
+
+    conn = _get_conn()
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, content, metadata
+            FROM documents_chunks
+            WHERE material_id = %s
+            ORDER BY (metadata->>'chunk_index')::int ASC NULLS LAST
+            LIMIT %s
+            """,
+            (material_id, limit),
+        )
+        rows = cur.fetchall()
+        if rows:
+            return [
+                {
+                    "id": str(r[0]),
+                    "content": r[1],
+                    "metadata": r[2] if isinstance(r[2], dict) else _json.loads(r[2]) if r[2] else {},
+                    "similarity": 0.5,
+                }
+                for r in rows
+            ]
+
+        # If no chunks exist in documents_chunks, fetch material raw_text
+        cur.execute("SELECT id, title, raw_text FROM materials WHERE id = %s", (material_id,))
+        mat_row = cur.fetchone()
+        if mat_row and mat_row[2]:
+            return [{
+                "id": str(mat_row[0]),
+                "content": mat_row[2][:3000],
+                "metadata": {"section_ref": mat_row[1] or "Overview", "chunk_index": 0},
+                "similarity": 0.5,
+            }]
+
+    return []
+
+
+def get_material_for_session(session_id: str) -> str | None:
+    """Resolve material_id for a given session by checking agent_runs or recent materials."""
+    import json as _json
+    import uuid as _uuid
+
+    conn = _get_conn()
+    with conn.cursor() as cur:
+        # Check if session_id is a valid UUID
+        is_valid_uuid = False
+        try:
+            _uuid.UUID(str(session_id))
+            is_valid_uuid = True
+        except (ValueError, TypeError):
+            is_valid_uuid = False
+
+        if is_valid_uuid:
+            try:
+                # Check agent_runs for matching session_id
+                cur.execute(
+                    """
+                    SELECT graph_state FROM agent_runs
+                    WHERE session_id = %s::uuid AND graph_state->>'materialId' IS NOT NULL
+                    ORDER BY created_at DESC LIMIT 1
+                    """,
+                    (session_id,),
+                )
+                row = cur.fetchone()
+                if row and row[0]:
+                    state = row[0] if isinstance(row[0], dict) else _json.loads(row[0])
+                    mat_id = state.get("materialId")
+                    if mat_id:
+                        return str(mat_id)
+            except Exception:
+                pass
+
+        # Fallback: get the most recent material
+        cur.execute(
+            "SELECT id FROM materials ORDER BY created_at DESC LIMIT 1"
+        )
+        row = cur.fetchone()
+        if row:
+            return str(row[0])
+
+    return None
+
+
+
