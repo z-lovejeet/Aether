@@ -67,68 +67,92 @@ export default function ResultsPage() {
   const [deletedToast, setDeletedToast] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const found: SavedSystem[] = [];
-      const seenIds = new Set<string>();
+    if (typeof window === "undefined") return;
 
-      for (let i = 0; i < sessionStorage.length; i++) {
-        const key = sessionStorage.key(i);
-        if (key && (key.startsWith("study:") || key.startsWith("ingest:"))) {
-          try {
-            const raw = sessionStorage.getItem(key);
-            if (raw) {
-              const data = JSON.parse(raw);
-              const sid = key.split(":")[1];
-              if (!seenIds.has(sid)) {
-                seenIds.add(sid);
-                found.push({
-                  id: sid,
-                  materialId: data.materialId,
-                  subject: data.subject || "General",
-                  title: data.conceptTree?.[0]?.name ? `${data.conceptTree[0].name} Hub` : "Active Study Hub",
-                  conceptsCount: data.conceptTree?.length || 5,
-                  level: data.level || "Intermediate",
-                  createdAt: "Recently Generated",
-                  masteryPct: 60,
-                  isCustom: true,
-                });
-              }
+    let isMounted = true;
+    const sessionMap = new Map<string, SavedSystem>();
+
+    // 1. Scan sessionStorage
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && (key.startsWith("study:") || key.startsWith("ingest:"))) {
+        try {
+          const raw = sessionStorage.getItem(key);
+          if (raw) {
+            const data = JSON.parse(raw);
+            const sid = key.split(":")[1];
+            if (sid && !sessionMap.has(sid)) {
+              sessionMap.set(sid, {
+                id: sid,
+                materialId: data.materialId,
+                subject: data.subject || "General",
+                title: data.conceptTree?.[0]?.name ? `${data.conceptTree[0].name} Hub` : "Active Study Hub",
+                conceptsCount: data.conceptTree?.length || 5,
+                level: data.level || "Intermediate",
+                createdAt: "Recently Generated",
+                masteryPct: 60,
+                isCustom: true,
+              });
             }
-          } catch {
-            /* ignore */
           }
+        } catch {
+          /* ignore */
         }
       }
-
-      // Also try fetching from backend PostgreSQL
-      getMaterials().then((remoteMaterials) => {
-        if (remoteMaterials && remoteMaterials.length > 0) {
-          const remoteSystems: SavedSystem[] = remoteMaterials.map((m) => ({
-            id: m.id,
-            materialId: m.id,
-            subject: m.subject,
-            title: `${m.title} Hub`,
-            conceptsCount: m.conceptsCount || 4,
-            level: "Intermediate",
-            createdAt: m.createdAt ? new Date(m.createdAt).toLocaleDateString() : "Saved",
-            masteryPct: 65,
-            isCustom: true,
-          }));
-
-          setSystems((prev) => {
-            const merged = [...found, ...prev];
-            for (const r of remoteSystems) {
-              if (!merged.some((m) => m.id === r.id || m.materialId === r.materialId)) {
-                merged.push(r);
-              }
-            }
-            return merged;
-          });
-        } else if (found.length > 0) {
-          setSystems((prev) => [...found, ...prev.filter((p) => !found.some((f) => f.id === p.id))]);
-        }
-      });
     }
+
+    // Combine default systems + sessionStorage systems
+    const baseMap = new Map<string, SavedSystem>();
+    // Session items first
+    for (const [id, sys] of sessionMap.entries()) {
+      baseMap.set(id, sys);
+    }
+    // Default sample systems
+    for (const d of DEFAULT_SYSTEMS) {
+      if (!baseMap.has(d.id)) {
+        baseMap.set(d.id, d);
+      }
+    }
+
+    setSystems(Array.from(baseMap.values()));
+
+    // 2. Also fetch from backend PostgreSQL and merge uniquely
+    getMaterials().then((remoteMaterials) => {
+      if (!isMounted) return;
+      if (remoteMaterials && remoteMaterials.length > 0) {
+        setSystems((_) => {
+          const mergedMap = new Map<string, SavedSystem>();
+          for (const [id, sys] of sessionMap.entries()) {
+            mergedMap.set(id, sys);
+          }
+          for (const m of remoteMaterials) {
+            if (!mergedMap.has(m.id)) {
+              mergedMap.set(m.id, {
+                id: m.id,
+                materialId: m.id,
+                subject: m.subject || "General",
+                title: `${m.title} Hub`,
+                conceptsCount: m.conceptsCount || 4,
+                level: "Intermediate",
+                createdAt: m.createdAt ? new Date(m.createdAt).toLocaleDateString() : "Saved",
+                masteryPct: 65,
+                isCustom: true,
+              });
+            }
+          }
+          for (const d of DEFAULT_SYSTEMS) {
+            if (!mergedMap.has(d.id)) {
+              mergedMap.set(d.id, d);
+            }
+          }
+          return Array.from(mergedMap.values());
+        });
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   async function handleDelete(id: string, materialId?: string) {
@@ -160,7 +184,10 @@ export default function ResultsPage() {
   }, [systems]);
 
   const filteredSystems = useMemo(() => {
+    const seen = new Set<string>();
     return systems.filter((s) => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id);
       if (selectedSubject !== "All" && s.subject !== selectedSubject) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
