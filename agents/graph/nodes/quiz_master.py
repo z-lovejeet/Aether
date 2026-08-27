@@ -165,7 +165,7 @@ async def quiz_master(state: dict) -> dict:
     system = SYSTEM_PROMPT.format(goal=goal, level=level, count=count)
     user_payload = (
         f"CONCEPTS:\n{concept_summary}\n\n"
-        f"SOURCE MATERIAL:\n\"\"\"\n{cleaned[:16000]}\n\"\"\""
+        f"SOURCE EXCERPT:\n\"\"\"\n{cleaned[:2500]}\n\"\"\""
     )
 
     from llm.groq import generate_json
