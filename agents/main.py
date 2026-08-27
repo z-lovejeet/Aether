@@ -798,6 +798,14 @@ async def add_xp(req: XPAwardRequest) -> dict[str, Any]:
     return await asyncio.to_thread(award_xp, user_id, req.points, req.activity)
 
 
+@app.get("/user/telemetry")
+async def user_telemetry() -> dict[str, Any]:
+    """Fetch live cognitive retention analytics, concept metrics, and strategy win rates."""
+    from graph.db import get_telemetry_stats, normalize_user_id
+    user_id = normalize_user_id("dev-user")
+    return await asyncio.to_thread(get_telemetry_stats, user_id)
+
+
 @app.websocket("/ws/{session_id}")
 async def ws_events(ws: WebSocket, session_id: str) -> None:
     """Stream node_start/node_end/token/asset_ready/error events (docs/13)."""
