@@ -35,6 +35,7 @@ const PRESETS = [
     title: "Cellular Respiration & Glycolysis",
     subject: "Cellular Biology",
     docName: "Biology_Ch4_Cellular_Respiration.pdf",
+    audioUrl: "/audio/sample-bio.mp3",
     rawNote: "Glucose (6C) is split into 2 Pyruvate (3C) in cytoplasm. Consumes 2 ATP, generates 4 ATP and 2 NADH. Net gain = 2 ATP. Followed by Krebs Cycle in matrix and ETC on inner membrane.",
     concepts: [
       { name: "Glycolysis Net Yield", level: "2 ATP + 2 NADH", status: "mastered", ef: 2.7 },
@@ -59,6 +60,7 @@ const PRESETS = [
     title: "Dijkstra's Shortest Path Algorithm",
     subject: "Computer Science",
     docName: "CS201_Graph_Algorithms.pdf",
+    audioUrl: "/audio/sample-cs.mp3",
     rawNote: "Greedy algorithm to find shortest paths with non-negative edge weights. Uses min-priority queue. Fails on negative weights because visited vertices are greedily marked final.",
     concepts: [
       { name: "Edge Relaxation", level: "dist[v] = min(dist[v], dist[u]+w)", status: "mastered", ef: 2.8 },
@@ -83,6 +85,7 @@ const PRESETS = [
     title: "Opportunity Cost & PPF Curve",
     subject: "Microeconomics",
     docName: "Econ101_Production_Frontier.pdf",
+    audioUrl: "/audio/sample-econ.mp3",
     rawNote: "Opportunity cost is the next best alternative forgone. PPF curve shows trade-offs and productive efficiency. Bowed-out shape reflects the law of increasing opportunity costs.",
     concepts: [
       { name: "Opportunity Cost", level: "Marginal rate of transformation", status: "mastered", ef: 2.9 },
@@ -163,6 +166,27 @@ export default function LandingPage() {
       return;
     }
 
+    // 1. Direct play if pre-rendered audio asset exists (instant 0ms response)
+    if (activePreset.audioUrl) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      const audio = new Audio(activePreset.audioUrl);
+      audioRef.current = audio;
+      audio.onended = () => setIsPlayingAudio(false);
+      audio.onerror = () => playWebSpeech(activePreset.rawNote);
+      try {
+        await audio.play();
+        setIsPlayingAudio(true);
+        return;
+      } catch {
+        playWebSpeech(activePreset.rawNote);
+        return;
+      }
+    }
+
+    // 2. Dynamic generation via backend TTS (ElevenLabs + Edge-TTS fallback)
     const textToRead = activePreset.rawNote;
     setAudioLoading(true);
 

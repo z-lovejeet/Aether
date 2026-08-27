@@ -1,7 +1,8 @@
-"""ElevenLabs Text-to-Speech (TTS) integration for Phase 9 Audio Lessons.
+"""Text-to-Speech (TTS) integration for Phase 9 Audio Lessons.
 
-Uses ElevenLabs REST API with Bella voice (hpp4J3VqNfWAUOO0d1Us) and eleven_flash_v2_5
-model for ultra-low latency audio generation with local file caching.
+Primary: ElevenLabs REST API with Bella voice (hpp4J3VqNfWAUOO0d1Us).
+Automatic Fallback: Microsoft Edge Neural TTS (en-US-AvaNeural) — 100% free,
+unlimited, crystal clear studio-quality neural voice for hackathons & offline demos.
 """
 
 from __future__ import annotations
@@ -57,14 +58,24 @@ def _cache_key(text: str, voice_id: str, model_id: str) -> str:
     return f"tts-{h}"
 
 
+async def _generate_edge_tts(clean_text: str) -> bytes:
+    """Generate crystal-clear neural speech using Edge-TTS (100% free fallback)."""
+    import edge_tts
+
+    comm = edge_tts.Communicate(clean_text, "en-US-AvaNeural")
+    chunks = []
+    async for chunk in comm.stream():
+        if chunk["type"] == "audio":
+            chunks.append(chunk["data"])
+    return b"".join(chunks)
+
+
 async def generate_speech(text: str, max_chars: int = 5000) -> bytes:
-    """Generate TTS audio via ElevenLabs API (Bella voice).
+    """Generate TTS audio.
 
-    Returns MP3 bytes. Caches results in CACHE_DIR.
+    Tries ElevenLabs Bella voice first. If quota is exceeded or key is missing,
+    automatically falls back to Edge-TTS Neural Voice (100% free & reliable).
     """
-    if not ELEVENLABS_API_KEY:
-        raise ValueError("ELEVENLABS_API_KEY is not configured in .env.local")
-
     clean_text = clean_text_for_speech(text)
     if len(clean_text) > max_chars:
         clean_text = clean_text[:max_chars]
@@ -79,44 +90,54 @@ async def generate_speech(text: str, max_chars: int = 5000) -> bytes:
     if cache_path.exists() and cache_path.stat().st_size > 0:
         return cache_path.read_bytes()
 
-    url = f"{BASE_TTS_URL}?output_format=mp3_44100_128&optimize_streaming_latency=3"
-    headers = {
-        "xi-api-key": ELEVENLABS_API_KEY,
-        "Content-Type": "application/json",
-        "Accept": "audio/mpeg",
-    }
-    payload = {
-        "text": clean_text,
-        "model_id": MODEL_ID,
-        "voice_settings": {
-            "stability": 0.5,
-            "similarity_boost": 0.75,
-            "style": 0.0,
-            "use_speaker_boost": True,
-        },
-    }
+    # 1. Try ElevenLabs if configured
+    if ELEVENLABS_API_KEY:
+        url = f"{BASE_TTS_URL}?output_format=mp3_44100_128&optimize_streaming_latency=3"
+        headers = {
+            "xi-api-key": ELEVENLABS_API_KEY,
+            "Content-Type": "application/json",
+            "Accept": "audio/mpeg",
+        }
+        payload = {
+            "text": clean_text,
+            "model_id": MODEL_ID,
+            "voice_settings": {
+                "stability": 0.5,
+                "similarity_boost": 0.75,
+                "style": 0.0,
+                "use_speaker_boost": True,
+            },
+        }
 
-    async with httpx.AsyncClient(timeout=45.0) as client:
-        res = await client.post(url, headers=headers, json=payload)
-        if res.status_code != 200:
-            error_msg = res.text
-            print(f"[tts] ElevenLabs API error {res.status_code}: {error_msg}")
-            raise RuntimeError(f"ElevenLabs TTS failed [{res.status_code}]: {error_msg}")
-        audio_bytes = res.content
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                res = await client.post(url, headers=headers, json=payload)
+                if res.status_code == 200 and len(res.content) > 0:
+                    audio_bytes = res.content
+                    try:
+                        cache_path.write_bytes(audio_bytes)
+                    except Exception:
+                        pass
+                    return audio_bytes
+                else:
+                    print(f"[tts] ElevenLabs returned {res.status_code}. Using Edge-TTS neural voice fallback.")
+        except Exception as err:
+            print(f"[tts] ElevenLabs request failed ({err}). Using Edge-TTS neural voice fallback.")
 
+    # 2. Free Neural Voice Fallback (Edge-TTS)
     try:
-        cache_path.write_bytes(audio_bytes)
-    except Exception as err:
-        print(f"[tts] Warning: failed to write cache: {err}")
-
-    return audio_bytes
+        audio_bytes = await _generate_edge_tts(clean_text)
+        try:
+            cache_path.write_bytes(audio_bytes)
+        except Exception:
+            pass
+        return audio_bytes
+    except Exception as fallback_err:
+        raise RuntimeError(f"All TTS providers failed: {fallback_err}")
 
 
 async def stream_speech(text: str, max_chars: int = 5000) -> AsyncGenerator[bytes, None]:
-    """Stream audio chunks via ElevenLabs API for low-latency playback."""
-    if not ELEVENLABS_API_KEY:
-        raise ValueError("ELEVENLABS_API_KEY is not configured in .env.local")
-
+    """Stream audio chunks for low-latency playback with automatic fallback."""
     clean_text = clean_text_for_speech(text)
     if len(clean_text) > max_chars:
         clean_text = clean_text[:max_chars]
@@ -132,31 +153,52 @@ async def stream_speech(text: str, max_chars: int = 5000) -> AsyncGenerator[byte
         yield cache_path.read_bytes()
         return
 
-    url = f"{BASE_TTS_URL}/stream?output_format=mp3_44100_128&optimize_streaming_latency=3"
-    headers = {
-        "xi-api-key": ELEVENLABS_API_KEY,
-        "Content-Type": "application/json",
-        "Accept": "audio/mpeg",
-    }
-    payload = {
-        "text": clean_text,
-        "model_id": MODEL_ID,
-        "voice_settings": {
-            "stability": 0.5,
-            "similarity_boost": 0.75,
-        },
-    }
+    # 1. Try ElevenLabs stream
+    if ELEVENLABS_API_KEY:
+        url = f"{BASE_TTS_URL}/stream?output_format=mp3_44100_128&optimize_streaming_latency=3"
+        headers = {
+            "xi-api-key": ELEVENLABS_API_KEY,
+            "Content-Type": "application/json",
+            "Accept": "audio/mpeg",
+        }
+        payload = {
+            "text": clean_text,
+            "model_id": MODEL_ID,
+            "voice_settings": {
+                "stability": 0.5,
+                "similarity_boost": 0.75,
+            },
+        }
 
+        collected = []
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                async with client.stream("POST", url, headers=headers, json=payload) as res:
+                    if res.status_code == 200:
+                        async for chunk in res.aiter_bytes():
+                            if chunk:
+                                collected.append(chunk)
+                                yield chunk
+                        if collected:
+                            try:
+                                cache_path.write_bytes(b"".join(collected))
+                            except Exception:
+                                pass
+                        return
+                    else:
+                        print(f"[tts] ElevenLabs stream {res.status_code}. Using Edge-TTS fallback.")
+        except Exception as err:
+            print(f"[tts] ElevenLabs stream error ({err}). Using Edge-TTS fallback.")
+
+    # 2. Fallback: Stream via Edge-TTS
+    import edge_tts
+
+    comm = edge_tts.Communicate(clean_text, "en-US-AvaNeural")
     collected = []
-    async with httpx.AsyncClient(timeout=45.0) as client:
-        async with client.stream("POST", url, headers=headers, json=payload) as res:
-            if res.status_code != 200:
-                err_content = await res.aread()
-                raise RuntimeError(f"ElevenLabs stream failed [{res.status_code}]: {err_content.decode('utf-8', errors='ignore')}")
-            async for chunk in res.aiter_bytes():
-                if chunk:
-                    collected.append(chunk)
-                    yield chunk
+    async for chunk in comm.stream():
+        if chunk["type"] == "audio" and chunk["data"]:
+            collected.append(chunk["data"])
+            yield chunk["data"]
 
     if collected:
         try:
