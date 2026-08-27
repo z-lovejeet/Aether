@@ -9,6 +9,10 @@ from __future__ import annotations
 import asyncio
 import os
 from functools import lru_cache
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+load_dotenv(".env.local")
 
 CLEANUP_SYSTEM_PROMPT = (
     "You are a text restorer. Fix OCR errors and restore document "

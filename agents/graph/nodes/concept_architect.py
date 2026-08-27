@@ -172,7 +172,7 @@ async def concept_architect(state: dict) -> dict:
         if material_id and cleaned.strip():
             try:
                 from .chunker import chunk_text
-                from ...llm.embed import embed_texts
+                from llm.embed import embed_texts
                 chunks = chunk_text(cleaned)
                 if chunks:
                     embs = await embed_texts([c["content"] for c in chunks])
