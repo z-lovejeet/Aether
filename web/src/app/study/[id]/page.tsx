@@ -24,7 +24,9 @@ import {
   ArrowRight,
   ArrowLeft,
   Zap,
+  MessageCircle,
 } from "lucide-react";
+import ChatDrawer from "@/components/chat/ChatDrawer";
 import { LiquidGlassCard } from "@/components/glass/LiquidGlassCard";
 import { LiquidGlassButton } from "@/components/glass/LiquidGlassButton";
 import { LiquidGlassBadge } from "@/components/glass/LiquidGlassBadge";
@@ -79,6 +81,7 @@ export default function StudyPage() {
   const [tab, setTab] = useState<TabId>("overview");
   const [data, setData] = useState<StudyData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -234,6 +237,33 @@ export default function StudyPage() {
           )}
         </div>
       </div>
+
+      {/* Floating Socratic Chat Trigger Button */}
+      {!chatOpen && (
+        <motion.button
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-xl hover:bg-slate-800 transition-all border border-slate-700/80 cursor-pointer"
+        >
+          <Sparkles className="h-4 w-4 text-amber-300" />
+          <span>Ask Aether</span>
+          <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px] font-mono">
+            AI Tutor
+          </span>
+        </motion.button>
+      )}
+
+      {/* Socratic Chat Drawer */}
+      <ChatDrawer
+        sessionId={sessionId}
+        materialId={data?.materialId || ""}
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+        onNavigateToQuiz={() => setTab("quiz")}
+      />
     </main>
   );
 }
