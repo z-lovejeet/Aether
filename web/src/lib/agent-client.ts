@@ -483,6 +483,17 @@ export async function deleteSession(sessionId: string): Promise<boolean> {
   }
 }
 
+export async function clearAllMaterials(): Promise<boolean> {
+  try {
+    const res = await fetch(`${AGENT_API_URL}/materials`, {
+      method: "DELETE",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /* ============ Phase 9: Audio Lessons (Neural Voice TTS) ============ */
 
 export async function generateTTSAudio(text: string, maxChars = 5000): Promise<Blob> {

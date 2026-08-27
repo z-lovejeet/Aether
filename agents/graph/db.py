@@ -900,6 +900,25 @@ def delete_session(session_id: str) -> bool:
         return True
 
 
+def clear_all_materials(user_id: str) -> bool:
+    """Delete all materials, concepts, quizzes, and session history for the user."""
+    user_id = normalize_user_id(user_id)
+    conn = _get_conn()
+    with conn.cursor() as cur:
+        # Delete materials belonging to user's subjects
+        cur.execute(
+            """
+            DELETE FROM materials
+            WHERE subject_id IN (SELECT id FROM subjects WHERE user_id = %s)
+            """,
+            (user_id,),
+        )
+        cur.execute("DELETE FROM attempts WHERE user_id = %s", (user_id,))
+        cur.execute("DELETE FROM agent_runs WHERE session_id IN (SELECT id FROM agent_runs)")
+        conn.commit()
+        return True
+
+
 def list_materials(limit: int = 50) -> list[dict]:
     """List stored materials with concept count and metadata for the Library."""
     conn = _get_conn()

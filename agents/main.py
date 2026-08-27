@@ -742,6 +742,15 @@ async def remove_session(session_id: str) -> dict[str, Any]:
     return {"deleted": True, "sessionId": session_id}
 
 
+@app.delete("/materials")
+async def clear_all_study_materials() -> dict[str, Any]:
+    """Clear all study materials, concepts, quizzes, and session history."""
+    from graph.db import clear_all_materials, normalize_user_id
+    user_id = normalize_user_id("dev-user")
+    await asyncio.to_thread(clear_all_materials, user_id)
+    return {"cleared": True}
+
+
 # ============ Phase 9: Audio Lessons (Neural Voice TTS) ============
 
 

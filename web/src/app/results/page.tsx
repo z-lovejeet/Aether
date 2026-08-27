@@ -14,11 +14,18 @@ import {
   AlertTriangle,
   ArrowUpDown,
   Clock,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/glass/LiquidGlassCard";
 import { LiquidGlassButton } from "@/components/glass/LiquidGlassButton";
 import { EmptyState } from "@/components/app/EmptyState";
-import { deleteSession, deleteMaterial, getMaterials } from "@/lib/agent-client";
+import {
+  deleteSession,
+  deleteMaterial,
+  getMaterials,
+  clearAllMaterials,
+} from "@/lib/agent-client";
 
 interface SavedSystem {
   id: string;
@@ -74,6 +81,8 @@ export default function ResultsPage() {
   const [selectedSubject, setSelectedSubject] = useState<string>("All");
   const [sortBy, setSortBy] = useState<"newest" | "mastery" | "concepts">("newest");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   const [deletedToast, setDeletedToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -200,11 +209,44 @@ export default function ResultsPage() {
     setTimeout(() => setDeletedToast(null), 3500);
   }
 
+  async function handleClearAllLibrary() {
+    setIsClearing(true);
+    try {
+      // 1. Backend database wipe
+      await clearAllMaterials();
+
+      // 2. Clear sessionStorage study items
+      if (typeof window !== "undefined") {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
+          if (k && (k.startsWith("study:") || k.startsWith("ingest:"))) {
+            keysToRemove.push(k);
+          }
+        }
+        for (const k of keysToRemove) {
+          sessionStorage.removeItem(k);
+        }
+      }
+
+      // 3. Reset local state
+      setSystems([]);
+      setClearConfirmOpen(false);
+      setDeletedToast("Library completely cleared.");
+      setTimeout(() => setDeletedToast(null), 3500);
+    } catch (err) {
+      console.error("Failed to clear library:", err);
+    } finally {
+      setIsClearing(false);
+    }
+  }
+
   const subjects = useMemo(() => {
     const list = Array.from(new Set(systems.map((s) => s.subject)));
     return ["All", ...list];
   }, [systems]);
 
+  // STRICT NEWEST-FIRST SORTING
   const filteredSystems = useMemo(() => {
     const seen = new Set<string>();
     return systems
@@ -225,8 +267,10 @@ export default function ResultsPage() {
       .sort((a, b) => {
         if (sortBy === "mastery") return b.masteryPct - a.masteryPct;
         if (sortBy === "concepts") return b.conceptsCount - a.conceptsCount;
-        // Default: Newest First
-        return (b.timestamp ?? 0) - (a.timestamp ?? 0);
+        // Strictly Newest First by timestamp
+        const timeA = a.timestamp ?? 0;
+        const timeB = b.timestamp ?? 0;
+        return timeB - timeA;
       });
   }, [systems, selectedSubject, searchQuery, sortBy]);
 
@@ -248,12 +292,66 @@ export default function ResultsPage() {
             </p>
           </div>
 
-          <Link href="/upload">
-            <LiquidGlassButton size="md" icon={<Plus className="h-4 w-4" />}>
-              Create New System
-            </LiquidGlassButton>
-          </Link>
+          <div className="flex items-center gap-2.5">
+            {systems.length > 0 && (
+              <button
+                onClick={() => setClearConfirmOpen(true)}
+                className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/70 hover:bg-rose-100 text-rose-700 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
+                title="Clear all materials and study history"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Clear Library</span>
+              </button>
+            )}
+
+            <Link href="/upload">
+              <LiquidGlassButton size="md" icon={<Plus className="h-4 w-4" />}>
+                Create New System
+              </LiquidGlassButton>
+            </Link>
+          </div>
         </div>
+
+        {/* ─── Clear All Confirmation Modal / Banner ─── */}
+        <AnimatePresence>
+          {clearConfirmOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mt-4 p-4 rounded-2xl border border-rose-300 bg-rose-50/95 text-rose-950 text-xs shadow-md"
+            >
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-sm text-rose-900">Clear all study materials from library?</p>
+                    <p className="text-rose-700 mt-0.5">
+                      This will permanently remove all concept trees, quizzes, flashcards, and notes. This cannot be undone.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                  <button
+                    disabled={isClearing}
+                    onClick={handleClearAllLibrary}
+                    className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                  >
+                    {isClearing ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    <span>{isClearing ? "Clearing…" : "Yes, Clear Everything"}</span>
+                  </button>
+                  <button
+                    disabled={isClearing}
+                    onClick={() => setClearConfirmOpen(false)}
+                    className="px-3 py-1.5 rounded-xl bg-white border border-rose-200 text-rose-800 font-semibold text-xs hover:bg-rose-100/60 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ─── Search, Filters & Sort Bar ─── */}
         <div className="mt-6 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
@@ -314,9 +412,9 @@ export default function ResultsPage() {
             >
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span>Successfully deleted <b>{deletedToast}</b></span>
+                <span><b>{deletedToast}</b></span>
               </div>
-              <span className="text-[11px] text-emerald-600 font-mono">Removed</span>
+              <span className="text-[11px] text-emerald-600 font-mono">Updated</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -338,7 +436,7 @@ export default function ResultsPage() {
               <LiquidGlassCard
                 key={sys.id}
                 depth="medium"
-                className="p-6 flex flex-col justify-between border-slate-200/90 bg-white/95 hover:border-slate-300 relative group"
+                className="p-6 flex flex-col justify-between border-slate-200/90 bg-white/95 hover:border-slate-300 relative group shadow-sm"
               >
                 <div>
                   <div className="flex items-center justify-between text-xs">
