@@ -97,12 +97,46 @@ async def cleanup_text(raw_text: str, language_hint: str = "") -> str:
     return raw_text
 
 
+@lru_cache(maxsize=4)
+def _get_groq_json(model: str):
+    from langchain_groq import ChatGroq
+
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY missing from agents/.env")
+    return ChatGroq(
+        model=model,
+        temperature=0.0,
+        max_tokens=4096,
+        timeout=25,
+        model_kwargs={"response_format": {"type": "json_object"}},
+    )
+
+
 async def generate_json(system: str, user: str) -> str:
-    """Generic fast JSON-mode generation with Gemini fallback (blueprint §6)."""
-    sys_prompt = system + "\nReturn ONLY valid JSON matching the requested schema."
+    """Generic fast JSON-mode generation with native JSON schema enforcement."""
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    sys_prompt = system + "\nReturn ONLY valid, parseable JSON matching the requested schema."
+    last_err: Exception | None = None
+
+    for model in _model_chain():
+        try:
+            client = _get_groq_json(model)
+            resp = await client.ainvoke(
+                [SystemMessage(content=sys_prompt), HumanMessage(content=user)]
+            )
+            return str(resp.content)
+        except Exception as err:
+            last_err = err
+            print(f"[groq] JSON generation with {model} failed ({err}), trying fallback…")
+
+    # Fallback to Gemini in JSON mode
     try:
-        return await _groq_generate(sys_prompt, user)
-    except Exception as err:
-        print(f"[groq] generate_json failed ({err}), falling back to Gemini…")
-        return await _gemini_text_fallback(sys_prompt, user)
+        from .gemini import _generate
+        return await _generate([sys_prompt + "\n\n" + user], json_mode=True)
+    except Exception as gemini_err:
+        print(f"[gemini] JSON fallback failed: {gemini_err}")
+
+    raise last_err or RuntimeError("All JSON generation backends failed")
 
