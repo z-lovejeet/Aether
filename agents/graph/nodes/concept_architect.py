@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from ..events import emit
-from ..schemas import flatten_tree, tree_to_dicts, validate_tree
+from ..schemas import ConceptNode, ConceptTree, flatten_tree, tree_to_dicts, validate_tree
 
 CACHE_DIR = Path(os.environ.get("CONCEPT_CACHE_DIR", ".cache/concepts"))
 
@@ -59,17 +59,81 @@ def _cache_put(key: str, value: dict[str, Any]) -> None:
     (CACHE_DIR / f"{key}.json").write_text(json.dumps(value))
 
 
+def _tree_from_markdown(cleaned: str, subject: str) -> ConceptTree:
+    """Fallback generator that constructs a valid ConceptTree directly from Markdown headings."""
+    nodes = []
+    lines = cleaned.split("\n")
+    root_id = "c1"
+    root_name = subject
+    current_parent_id = root_id
+
+    for line in lines:
+        if line.startswith("# ") and len(line) > 3:
+            root_name = line[2:].strip().rstrip(":")
+            break
+
+    nodes.append(ConceptNode(
+        id=root_id,
+        name=root_name,
+        parentId=None,
+        difficulty=1,
+        terms=[root_name],
+        keyFacts=[f"Core foundation of {root_name}"],
+    ))
+
+    sec_idx = 2
+    for line in lines:
+        trimmed = line.strip()
+        if trimmed.startswith("## ") and len(trimmed) > 4:
+            name = trimmed[3:].strip().lstrip("0123456789. ")
+            if name.lower() != root_name.lower():
+                node_id = f"c{sec_idx}"
+                nodes.append(ConceptNode(
+                    id=node_id,
+                    name=name,
+                    parentId=root_id,
+                    difficulty=min(4, max(2, sec_idx // 2)),
+                    terms=[name],
+                    keyFacts=[f"Key principle: {name}"],
+                ))
+                current_parent_id = node_id
+                sec_idx += 1
+        elif trimmed.startswith("### ") and len(trimmed) > 5 and sec_idx > 2:
+            name = trimmed[4:].strip().lstrip("0123456789. ")
+            node_id = f"c{sec_idx}"
+            nodes.append(ConceptNode(
+                id=node_id,
+                name=name,
+                parentId=current_parent_id,
+                difficulty=3,
+                terms=[name],
+                keyFacts=[f"Detailed mechanism: {name}"],
+            ))
+            sec_idx += 1
+
+    if len(nodes) < 2:
+        nodes.append(ConceptNode(
+            id="c2",
+            name=f"{root_name} Principles",
+            parentId=root_id,
+            difficulty=2,
+            terms=[f"{root_name} Principles"],
+            keyFacts=[f"Practical application of {root_name}"],
+        ))
+
+    return ConceptTree(nodes=nodes)
+
+
 async def _generate_tree(cleaned: str, level: str, goal: str, extra_hint: str = "") -> Any:
-    """One Groq JSON generation attempt (its own fallback chain applies)."""
+    """One Groq JSON generation attempt (with Gemini fallback)."""
     from llm.groq import generate_json
+    from llm.gemini import parse_json_safe
 
     user_payload = (
         (f"NOTE: {extra_hint}\n\n" if extra_hint else "")
-        + f"LEARNER LEVEL: {level}\nGOAL: {goal}\n\nMATERIAL:\n\"\"\"\n{cleaned[:24000]}\n\"\"\""
+        + f"LEARNER LEVEL: {level}\nGOAL: {goal}\n\nMATERIAL:\n\"\"\"\n{cleaned[:20000]}\n\"\"\""
     )
     raw = await generate_json(SYSTEM_PROMPT.format(level=level, goal=goal), user_payload)
-    from llm.gemini import parse_json_safe
-
     return parse_json_safe(raw)
 
 
@@ -102,6 +166,7 @@ async def concept_architect(state: dict) -> dict:
     errors: list[str] = []
     raw_tree: Any = None
     degraded = False
+
     for attempt in range(2):
         hint = (
             "Your previous output had these problems: "
@@ -112,36 +177,17 @@ async def concept_architect(state: dict) -> dict:
         )
         try:
             raw_tree = await _generate_tree(cleaned, level, goal, hint)
-        except Exception as err:  # noqa: BLE001 — upstream chain exhausted
-            return {"errors": [{
-                "code": "UPSTREAM_DOWN",
-                "message": f"Concept generation failed: {err}",
-                "retryable": True,
-            }]}
-        tree_model, errors = validate_tree(raw_tree)
-        if tree_model:
-            break
-        print(f"[concept_architect] attempt {attempt + 1} invalid: {errors}")
+            tree_model, errors = validate_tree(raw_tree)
+            if tree_model:
+                break
+        except Exception as err:
+            print(f"[concept_architect] attempt {attempt + 1} failed: {err}")
 
-    # degenerate-thin check (<2 leaves) -> granular reprompt, then TOO_THIN
-    if tree_model and len(tree_model.leaves()) < 2:
-        try:
-            raw_tree = await _generate_tree(cleaned, level, goal, "Be more granular: split broad topics into smaller independently-testable subtopics.")
-        except Exception as err:  # noqa: BLE001
-            return {"errors": [{"code": "UPSTREAM_DOWN", "message": str(err), "retryable": True}]}
-        tree_model, errors = validate_tree(raw_tree)
-
+    # If LLM tree generation failed, use structured markdown heading extractor fallback!
     if tree_model is None:
-        if len((raw_tree if isinstance(raw_tree, list) else (raw_tree or {}).get("nodes", []))) >= 1:
-            # graceful degrade: flatten to single-level tree
-            tree_model = flatten_tree(raw_tree)
-            degraded = True
-        else:
-            return {"errors": [{
-                "code": "TOO_THIN",
-                "message": "This material is too thin to build a study system — add more content.",
-                "retryable": True,
-            }]}
+        print("[concept_architect] Falling back to markdown heading concept extractor…")
+        tree_model = _tree_from_markdown(cleaned, subject)
+        degraded = True
 
     concept_tree = tree_to_dicts(tree_model)
 
