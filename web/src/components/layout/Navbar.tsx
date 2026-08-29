@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
@@ -48,8 +49,15 @@ export function Navbar() {
         >
           {/* Logo / Brand */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 text-white font-display font-bold text-sm shadow-sm transition-transform duration-200 group-hover:scale-105">
-              A
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-xl overflow-hidden shadow-sm border border-slate-200/50 bg-slate-950 transition-transform duration-200 group-hover:scale-105">
+              <Image
+                src="/icon.png"
+                alt="Aether Logo"
+                width={32}
+                height={32}
+                className="h-full w-full object-cover"
+                priority
+              />
             </div>
             <span className="font-display text-base font-bold tracking-tight text-slate-900 flex items-center gap-1.5">
               Aether <span className="text-[10px] rounded-md bg-slate-100 text-slate-600 px-1.5 py-0.5 border border-slate-200 font-mono font-medium">OS</span>

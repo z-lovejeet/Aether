@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { GitBranch, ExternalLink, Cpu, Zap, ArrowUpRight } from "lucide-react";
 
 export function Footer() {
@@ -10,9 +11,15 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           {/* Brand Column */}
           <div className="md:col-span-2 space-y-3">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-white font-display font-bold text-xs">
-                A
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="relative flex h-7 w-7 items-center justify-center rounded-lg overflow-hidden shadow-xs border border-slate-200/50 bg-slate-950 transition-transform duration-200 group-hover:scale-105">
+                <Image
+                  src="/icon.png"
+                  alt="Aether Logo"
+                  width={28}
+                  height={28}
+                  className="h-full w-full object-cover"
+                />
               </div>
               <span className="font-display text-lg font-bold text-slate-900">
                 Aether <span className="text-xs text-slate-500 font-mono">OS</span>

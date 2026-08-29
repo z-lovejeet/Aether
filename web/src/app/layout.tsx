@@ -26,9 +26,26 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://aether.vercel.app"),
   title: "Aether — The Intelligent Active Study Engine",
   description:
     "Turn textbooks, lecture notes, and slides into personalized active study systems with concept trees, SM-2 spaced repetition, and adaptive rescue loops.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: ["/favicon.ico"],
+  },
+  openGraph: {
+    title: "Aether — The Intelligent Active Study Engine",
+    description: "Turn textbooks, lecture notes, and slides into personalized active study systems.",
+    images: [{ url: "/icon.png", width: 512, height: 512, alt: "Aether OS Logo" }],
+  },
 };
 
 export default function RootLayout({
