@@ -5,9 +5,9 @@
 # Aether — Multi-Agent Cognitive Study OS
 ### *Turn Messy Notes into Permanent Understanding in 14 Seconds.*
 
-[![Live App](https://img.shields.io/badge/Live%20Demo-aether.vercel.app-3b82f6?style=for-the-badge&logo=vercel&logoColor=white)](https://aether.vercel.app)
+[![Live App](https://img.shields.io/badge/Live%20Demo-aether.vercel.app-3b82f6?style=for-the-badge&logo=vercel&logoColor=white)](https://aether-wine-ten.vercel.app/)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-slate?style=for-the-badge&logo=github&logoColor=white)](https://github.com/z-lovejeet/Aether)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://aether-5r7b.onrender.com/docs)
 [![Next.js](https://img.shields.io/badge/Next.js-16.3.2-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
 [![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-FF6F00?style=for-the-badge)](https://langchain-ai.github.io/langgraph/)
 [![Supabase](https://img.shields.io/badge/Database-Supabase%20pgvector-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
