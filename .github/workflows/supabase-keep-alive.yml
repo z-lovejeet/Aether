@@ -1,0 +1,37 @@
+name: Supabase Keep-Alive
+
+on:
+  schedule:
+    # Runs every 3 days at 06:00 UTC to perpetually reset Supabase's 7-day inactivity pause timer
+    - cron: '0 6 */3 * *'
+  workflow_dispatch: # Allows manual trigger anytime from the GitHub Actions tab
+
+jobs:
+  keep-alive:
+    name: Ping Supabase Database & Auth APIs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST & Auth Endpoints
+        env:
+          SUPABASE_URL: "https://bkahgxxrdyqpqgkdmfaq.supabase.co"
+          SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrYWhneHhyZHlxcHFna2RtZmFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3MzM3NzAsImV4cCI6MjEwMzMwOTc3MH0.pCVlO6iAk3EkQJC7pLnwtEo-6XNSBRl7cIQ0lykEtY4"
+        run: |
+          echo "Pinging Supabase REST database endpoint..."
+          REST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${SUPABASE_URL}/rest/v1/materials?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            -H "Content-Type: application/json")
+          echo "REST Status Code: $REST_STATUS"
+
+          echo "Pinging Supabase Auth health endpoint..."
+          AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${SUPABASE_URL}/auth/v1/health" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Content-Type: application/json")
+          echo "Auth Status Code: $AUTH_STATUS"
+
+          if [ "$REST_STATUS" -eq 200 ] || [ "$AUTH_STATUS" -eq 200 ]; then
+            echo "✅ Supabase project pinged successfully! 7-day inactivity timer reset."
+          else
+            echo "⚠️ Unexpected status codes, please check Supabase dashboard."
+            exit 1
+          fi

@@ -85,8 +85,19 @@ class XPAwardRequest(BaseModel):
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
+    db_status = "unconfigured"
+    try:
+        from graph.db import _get_conn
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"unavailable: {str(e)[:60]}"
+
     return {
         "status": "ok",
+        "database": db_status,
         "service": "mastery-engine-agents",
         "routes": sorted(ROUTES.keys()),
     }
