@@ -104,7 +104,7 @@ export function Footer() {
               </li>
               <li>
                 <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 mt-1">
-                  Built for August AI Challenge
+                  Autonomous Multi-Agent System
                 </span>
               </li>
             </ul>
