@@ -25,7 +25,7 @@ An AI study system that learns how **you** learn. Drop in any material — a tex
 
 ## 4. Features (MoSCoW)
 
-### Must Have (P0) — hackathon scope
+### Must Have (P0) — Core MVP Scope
 1. Multi-format ingestion: photo (OCR), PDF/text paste, audio, YouTube link
 2. Behavioral onboarding wizard ("Learning DNA") + profile storage
 3. AI concept extraction → hierarchical concept tree per material
@@ -49,7 +49,7 @@ An AI study system that learns how **you** learn. Drop in any material — a tex
 17. XP/streak gamification polish, confetti milestones
 18. Shareable study-set links
 
-## 5. Success Metrics (hackathon demo criteria)
+## 5. Success Metrics (Core Performance Criteria)
 - Upload-to-study-system latency ≤ 60 s for a textbook page
 - Grading feedback latency ≤ 2 s (Groq path)
 - At least one full remediation loop demonstrable live
