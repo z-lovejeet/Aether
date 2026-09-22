@@ -1,4 +1,4 @@
-# 11 · Devpost Submission Copy (pre-drafted)
+# 11 · Project Pitch Copy (pre-drafted)
 
 ---
 
@@ -31,7 +31,7 @@ Maya studied four times and still got a 54. She said: *"I knew it yesterday. It 
 - Keeping the whole pipeline under 60 seconds (parallel fan-out + aggressive caching).
 
 ## Accomplishments We're Proud Of
-A live demo where judges can watch an AI notice a student's misconception, change its own teaching strategy, and visibly update its model of how that student learns.
+A live demo where anyone can watch an AI notice a student's misconception, change its own teaching strategy, and visibly update its model of how that student learns.
 
 ## Links
 - Live app · GitHub repo · 2-minute demo video
