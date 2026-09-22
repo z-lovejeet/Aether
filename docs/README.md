@@ -1,6 +1,6 @@
 # 📚 Mastery Engine — Documentation Index
 
-> Hackathon: August AI Challenge (Devpost) · Deadline **Aug 29**
+> Architecture: LangGraph Supervisor with 10 Specialist Agents
 > One-line pitch: *The AI study system that learns how you learn — drop anything in, walk out remembering everything.*
 
 ## Read in order
@@ -34,7 +34,7 @@
 | 08 | [Project Plan & Milestones](08-project-plan.md) |
 | 09 | [Setup & Environment Guide](09-setup-guide.md) |
 | 10 | [Demo Video Script](10-video-script.md) |
-| 11 | [Devpost Submission Copy](11-devpost-submission.md) |
+| 11 | [Project Pitch & Submission Copy](11-devpost-submission.md) |
 | 13 | [API Contracts (web ⇄ agents)](13-api-contracts.md) |
 
 *12 · root `README.md` is written during Phase 10 (needs live URLs + hero GIF).*
