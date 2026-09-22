@@ -1,5 +1,5 @@
 # 08 · Project Plan & Milestones
-## Mastery Engine — deadline: Aug 29 (Devpost)
+## Mastery Engine — Milestone Roadmap
 
 Working cadence: build with ox-alpha + Cline against these specs; every phase ends with a live deploy check (Vercel preview).
 
@@ -48,9 +48,9 @@ Chunking + embeddings + pgvector + streaming chat with citations
 Audio lessons (TTS), XP/streak/confetti, mobile pass, empty/loading states, cheat sheet print CSS, teacher worksheets if time
 **DoD:** Lighthouse ≥90 accessibility; zero broken flows on phone
 
-## Phase 10 — Submission package (≈1 d)
-README w/ hero GIF + architecture diagram, LangSmith trace screenshots, Devpost copy, 2-min video recorded & edited
-**DoD:** submitted before Aug 29 with buffer
+## Phase 10 — Release package (≈1 d)
+README w/ hero GIF + architecture diagram, LangSmith trace screenshots, product pitch copy, 2-min video recorded & edited
+**DoD:** full release packaged with docs and demo video
 
 ## Risk Buffers
 | Risk | Mitigation |
