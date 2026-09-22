@@ -47,7 +47,7 @@ In 1885, Hermann Ebbinghaus discovered the Forgetting Curve: within 24 hours you
 - **Teachers:** "One lesson in. Every reading level out."
 - **Judges/devs:** "A LangGraph multi-agent system that personalizes generation AND runs an adaptive remediation feedback loop on top of SM-2 spaced repetition."
 
-## 7. Emotional Arc (used across video, landing, Devpost)
+## 7. Emotional Arc (used across video, landing, and narrative)
 1. **Empathy** — Maya fails despite trying
 2. **Revelation** — the forgetting curve; 70% gone in 24 h
 3. **Magic** — photograph → personalized system in 60 s
