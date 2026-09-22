@@ -54,7 +54,7 @@ exit quiz, answer key) → preview glass documents → approve & export PDF
 ## Key Screens (wireframe notes)
 | Screen | Layout notes |
 |---|---|
-| Landing | dark space bg + aurora blobs; H1 "Remember everything."; phone-photo demo GIF; feature-wall bento below; footer w/ Devpost links |
+| Landing | dark space bg + aurora blobs; H1 "Remember everything."; phone-photo demo GIF; feature-wall bento below; footer w/ documentation links |
 | Onboarding | centered single question, huge type, 8 progress dots, interest picker as emoji chips |
 | Dashboard | bento: hero review tile 2×2 top-left; hue-tinted per active subject |
 | Processing | AgentPipelineIndicator = horizontal lane of glowing glass nodes with connecting liquid lines |
