@@ -34,7 +34,7 @@
 | 08 | [Project Plan & Milestones](08-project-plan.md) |
 | 09 | [Setup & Environment Guide](09-setup-guide.md) |
 | 10 | [Demo Video Script](10-video-script.md) |
-| 11 | [Project Pitch & Submission Copy](11-devpost-submission.md) |
+| 11 | [Project Pitch & Submission Copy](11-project-pitch.md) |
 | 13 | [API Contracts (web ⇄ agents)](13-api-contracts.md) |
 
 *12 · root `README.md` is written during Phase 10 (needs live URLs + hero GIF).*
