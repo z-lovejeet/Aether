@@ -15,8 +15,7 @@
 [![Gemini](https://img.shields.io/badge/Multimodal-Gemini%203.6%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev)
 
 <p align="center">
-  <b>Built for the Prometheus AI Hackathon (August 2026)</b><br />
-  <i>An autonomous multi-agent cognitive architecture engineered to defeat the 1885 Ebbinghaus Forgetting Curve.</i>
+  <b>An autonomous multi-agent cognitive architecture engineered to defeat the 1885 Ebbinghaus Forgetting Curve.</b>
 </p>
 
 ---
@@ -338,16 +337,16 @@ Open `http://localhost:3000` in your browser.
 
 ---
 
-## 🏆 Hackathon Submission Checklist
+## 🏆 System Capabilities & Verification
 
-- [x] **Educational Impact (25 pts):** Directly attacks the Ebbinghaus forgetting curve; transforms passive studying into active spaced retrieval.
-- [x] **Creative Use of AI/ML (25 pts):** LangGraph Supervisor coordinating 10 specialist agents, sub-15s parallel fan-out, and adaptive pedagogical rescue state machine.
-- [x] **Technical Execution (25 pts):** Zero-warning production build across 15 routes, Next.js 16 Turbopack, Supabase pgvector, and custom "Liquid Glass" design system.
-- [x] **The Pitch & Demo (25 pts):** High-energy 2-minute live demo walking through real multimodal ingestion, live grading, and interactive remediation.
+- [x] **Cognitive Learning Science:** Directly attacks the Ebbinghaus forgetting curve; transforms passive studying into active spaced retrieval.
+- [x] **Autonomous AI Orchestration:** LangGraph Supervisor coordinating 10 specialist agents, sub-15s parallel fan-out, and adaptive pedagogical rescue state machine.
+- [x] **Technical Execution:** Zero-warning production build across 15 routes, Next.js 16 Turbopack, Supabase pgvector, and custom "Liquid Glass" design system.
+- [x] **Interactive Multimodal Demo:** High-speed live system walking through real multimodal ingestion, live grading, and interactive remediation.
 
 ---
 
 ## 📄 License & Team
 
-Built with ❤️ by **Lovejeet Singh** ([@z-lovejeet](https://github.com/z-lovejeet)) for the **Prometheus August AI Challenge (2026)**.  
+Built with ❤️ by **Lovejeet Singh** ([@z-lovejeet](https://github.com/z-lovejeet)).  
 Licensed under the [MIT License](LICENSE).
